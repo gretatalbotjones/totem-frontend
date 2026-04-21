@@ -18,6 +18,9 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 
+drop policy if exists "profiles: public read"  on public.profiles;
+drop policy if exists "profiles: owner update" on public.profiles;
+
 -- Anyone can read any profile (needed for search, viewing pages)
 create policy "profiles: public read"
   on public.profiles for select
@@ -32,6 +35,9 @@ create policy "profiles: owner update"
 
 
 -- ── POSTS ───────────────────────────────────────────────────
+-- Create the table if it doesn't exist at all.
+-- If it was created manually, the ALTER statements below patch
+-- any missing columns so this file is safe to re-run.
 
 create table if not exists public.posts (
   id          uuid primary key default gen_random_uuid(),
@@ -43,7 +49,36 @@ create table if not exists public.posts (
   created_at  timestamptz not null default now()
 );
 
+-- Patch columns that may be missing from a manually-created table
+alter table public.posts
+  add column if not exists image_url   text;
+
+alter table public.posts
+  add column if not exists visibility  text not null default 'friends';
+
+-- Add the check constraint only if it isn't already there
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.check_constraints
+    where constraint_schema = 'public'
+      and constraint_name   = 'posts_visibility_check'
+  ) then
+    alter table public.posts
+      add constraint posts_visibility_check
+      check (visibility in ('friends', 'public'));
+  end if;
+end;
+$$;
+
 alter table public.posts enable row level security;
+
+-- Drop policies before recreating so re-runs don't error
+drop policy if exists "posts: public read"   on public.posts;
+drop policy if exists "posts: friends read"  on public.posts;
+drop policy if exists "posts: owner insert"  on public.posts;
+drop policy if exists "posts: owner update"  on public.posts;
+drop policy if exists "posts: owner delete"  on public.posts;
 
 -- Public posts are readable by anyone
 create policy "posts: public read"
@@ -93,6 +128,10 @@ create table if not exists public.follows (
 );
 
 alter table public.follows enable row level security;
+
+drop policy if exists "follows: public read"  on public.follows;
+drop policy if exists "follows: owner insert" on public.follows;
+drop policy if exists "follows: owner delete" on public.follows;
 
 -- Follows are readable by anyone (required to evaluate post visibility)
 create policy "follows: public read"
