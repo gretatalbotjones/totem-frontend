@@ -5128,6 +5128,13 @@ function submitPost() {
     taggedPeople: [...taggedPeople]
   });
 
+  if (supabaseClient && currentUser.id) {
+    supabaseClient
+      .from('posts')
+      .insert({ user_id: currentUser.id, caption, created_at: new Date().toISOString() })
+      .then(({ error }) => { if (error) console.warn('[Totem] post insert failed:', error.message); });
+  }
+
   // Reset
   selectedImages = []; aiDeclared = false; selectedAudience = 'everyone'; selectedGroups = []; taggedPeople = [];
   document.getElementById('imageFileInput').value = '';
