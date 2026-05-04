@@ -2849,8 +2849,8 @@
             <div class="profile-bio" id="profileBio">📍 London</div>
             <div class="profile-stats">
               <div class="stat" id="stat-posts"><strong id="postCount">0</strong><span>posts</span></div>
-              <div class="stat" id="stat-followers" onclick="openFollowersModal()" style="cursor:pointer;"><strong>350</strong><span>followers</span></div>
-              <div class="stat" id="stat-following" onclick="openFollowingModal()" style="cursor:pointer;"><strong>318</strong><span>following</span></div>
+              <div class="stat" id="stat-followers" onclick="openFollowersModal()" style="cursor:pointer;"><strong id="followerCount">0</strong><span>followers</span></div>
+              <div class="stat" id="stat-following" onclick="openFollowingModal()" style="cursor:pointer;"><strong id="followingCount">0</strong><span>following</span></div>
             </div>
             <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:nowrap; align-items:center;">
               <button class="feed-pill" onclick="openEditProfileModal()" style="flex:1; text-align:center;">
@@ -6695,6 +6695,10 @@ function scrollToEvent(id) {
 // ══════════════════════════════════════════
 
 function renderNotifs() {
+  if (notifications.length === 0) {
+    document.getElementById('notifList').innerHTML = '<div class="empty-state" style="padding:40px 20px;text-align:center;color:var(--muted);">No notifications yet ✦</div>';
+    return;
+  }
   document.getElementById('notifList').innerHTML = notifications.map(n=>`
     <div class="notif-item ${n.unread?'unread':''}">
       <div class="notif-icon">${n.icon}</div>
@@ -6707,6 +6711,10 @@ function renderNotifs() {
 // ══════════════════════════════════════════
 
 function renderMessages() {
+  if (demoMessages.length === 0) {
+    document.getElementById('messageList').innerHTML = '<div class="empty-state" style="padding:40px 20px;text-align:center;color:var(--muted);">No messages yet ✦</div>';
+    return;
+  }
   document.getElementById('messageList').innerHTML = demoMessages.map(m=>{
     let avatarHtml;
     if (m.group) {
@@ -6914,8 +6922,14 @@ const collectionsData = [
 ];
 
 // Backups of demo account's personal data — restored on login if the account matches
-const _DEMO_DIARY       = [...currentUser.diary];
-const _DEMO_COLLECTIONS = collectionsData.map(c => ({ ...c }));
+const _DEMO_DIARY        = [...currentUser.diary];
+const _DEMO_COLLECTIONS  = collectionsData.map(c => ({ ...c }));
+const _DEMO_POSTS        = posts.map(p => ({ ...p }));
+const _DEMO_EVENTS       = events.map(e => ({ ...e }));
+const _DEMO_NOTIFS       = notifications.map(n => ({ ...n }));
+const _DEMO_MESSAGES     = demoMessages.map(m => ({ ...m }));
+const _DEMO_CONTACTS     = contacts.map(c => ({ ...c }));
+const _DEMO_CHAT_HISTORY = JSON.parse(JSON.stringify(chatHistory));
 const DEMO_ACCOUNT_NAME  = 'Greta Talbot-Jones';
 const DEMO_ACCOUNT_EMAIL = 'greta.talbot.jones@gmail.com';
 
@@ -7570,13 +7584,15 @@ let lightboxIndex = 0;
 
 // ── Friend profile ──
 let fpCurrentName = null;
-let fpFollowing = true;
+let fpFollowing = false;
+let fpCurrentProfileId = null;
 
-function openFriendProfile(name) {
+async function openFriendProfile(name) {
   const profile = contactProfiles[name];
   if (!profile) return;
   const contact = contacts.find(c => c.name === name);
   fpCurrentName = name;
+  fpCurrentProfileId = null;
 
   document.getElementById('fpUsername').textContent = name;
   document.getElementById('fpName').textContent = name;
@@ -7592,16 +7608,38 @@ function openFriendProfile(name) {
     wrap.innerHTML = `<div class="fp-avatar-initial">${name[0]}</div>`;
   }
 
-  // Follow button state
-  fpFollowing = true;
-  document.getElementById('fpFollowBtn').textContent = 'Following';
-  document.getElementById('fpFollowBtn').classList.add('primary');
+  // Default to Follow while DB check runs
+  fpFollowing = false;
+  const btn = document.getElementById('fpFollowBtn');
+  btn.textContent = 'Follow';
+  btn.classList.remove('primary');
 
   // Render gallery
   renderFriendGallery(name);
 
   document.getElementById('friendProfileModal').classList.add('open');
   document.body.style.overflow = 'hidden';
+
+  // Look up this person's profile UUID and check actual follow state
+  if (supabaseClient && currentUser.id) {
+    const { data: profileRow } = await supabaseClient
+      .from('profiles')
+      .select('id')
+      .eq('name', name)
+      .maybeSingle();
+    if (profileRow) {
+      fpCurrentProfileId = profileRow.id;
+      const { data: followRow } = await supabaseClient
+        .from('follows')
+        .select('follower_id')
+        .eq('follower_id', currentUser.id)
+        .eq('following_id', fpCurrentProfileId)
+        .maybeSingle();
+      fpFollowing = !!followRow;
+      btn.textContent = fpFollowing ? 'Following' : 'Follow';
+      btn.classList.toggle('primary', fpFollowing);
+    }
+  }
 }
 
 function closeFriendProfile() {
@@ -7610,11 +7648,46 @@ function closeFriendProfile() {
   fpCurrentName = null;
 }
 
-function toggleFriendFollow() {
+async function toggleFriendFollow() {
+  if (!currentUser.id) {
+    showToast('Sign in to follow people ✦');
+    return;
+  }
+
+  // Optimistic toggle
   fpFollowing = !fpFollowing;
   const btn = document.getElementById('fpFollowBtn');
   btn.textContent = fpFollowing ? 'Following' : 'Follow';
   btn.classList.toggle('primary', fpFollowing);
+
+  if (!supabaseClient || !fpCurrentProfileId) return;
+
+  if (fpFollowing) {
+    const { error } = await supabaseClient
+      .from('follows')
+      .upsert(
+        { follower_id: currentUser.id, following_id: fpCurrentProfileId },
+        { onConflict: 'follower_id,following_id', ignoreDuplicates: true }
+      );
+    if (error) {
+      console.warn('[Totem] follow failed:', error.message);
+      fpFollowing = false;
+      btn.textContent = 'Follow';
+      btn.classList.remove('primary');
+    }
+  } else {
+    const { error } = await supabaseClient
+      .from('follows')
+      .delete()
+      .eq('follower_id', currentUser.id)
+      .eq('following_id', fpCurrentProfileId);
+    if (error) {
+      console.warn('[Totem] unfollow failed:', error.message);
+      fpFollowing = true;
+      btn.textContent = 'Following';
+      btn.classList.add('primary');
+    }
+  }
 }
 
 function openChatFromProfile() {
@@ -8249,11 +8322,24 @@ function enterApp(user, newUser, welcomeMsg) {
   // Restore or clear demo data depending on whether this is the demo account
   if (isDemoAccount) {
     currentUser.diary = [..._DEMO_DIARY];
+    posts.length = 0;         _DEMO_POSTS.forEach(p => posts.push({ ...p }));
+    events.length = 0;        _DEMO_EVENTS.forEach(e => events.push({ ...e }));
+    notifications.length = 0; _DEMO_NOTIFS.forEach(n => notifications.push({ ...n }));
+    demoMessages.length = 0;  _DEMO_MESSAGES.forEach(m => demoMessages.push({ ...m }));
+    contacts.length = 0;      _DEMO_CONTACTS.forEach(c => contacts.push({ ...c }));
+    Object.keys(chatHistory).forEach(k => delete chatHistory[k]);
+    Object.assign(chatHistory, JSON.parse(JSON.stringify(_DEMO_CHAT_HISTORY)));
     collectionsData.length = 0;
     _DEMO_COLLECTIONS.forEach(c => collectionsData.push({ ...c }));
     document.querySelectorAll('#profileDiariesStrip .diary-item').forEach((el, i) => { if (i > 0) el.style.display = ''; });
   } else {
     currentUser.diary = [];
+    posts.length = 0;
+    events.length = 0;
+    notifications.length = 0;
+    demoMessages.length = 0;
+    contacts.length = 0;
+    Object.keys(chatHistory).forEach(k => delete chatHistory[k]);
     collectionsData.length = 0;
     document.querySelectorAll('#profileDiariesStrip .diary-item').forEach((el, i) => { if (i > 0) el.style.display = 'none'; });
   }
@@ -8281,6 +8367,14 @@ function enterApp(user, newUser, welcomeMsg) {
         profilePicEl.innerHTML = `<span style="font-size:1.6rem;font-weight:700;color:white;">${currentUser.initial}</span>`;
       }
     }
+
+    // Profile bio and counts — demo values for demo account, empty for everyone else
+    const bioEl        = document.getElementById('profileBio');
+    const followerEl   = document.getElementById('followerCount');
+    const followingEl  = document.getElementById('followingCount');
+    if (bioEl)       bioEl.textContent        = isDemoAccount ? '📍 London' : '';
+    if (followerEl)  followerEl.textContent   = isDemoAccount ? '350' : '0';
+    if (followingEl) followingEl.textContent  = isDemoAccount ? '318' : '0';
 
     // Show/hide pending verify banner
     const banner = document.getElementById('pendingVerifyBanner');
