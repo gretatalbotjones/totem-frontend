@@ -8190,13 +8190,11 @@ async function finishRegistration(submitted) {
     // trigger already created the row (e.g. if sign-in was fast)
     const userId = pendingReg.supabaseId || supabaseClient.auth.getSession()?.data?.session?.user?.id;
     if (userId) {
-      const username = pendingReg.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
       const { error: profileError } = await supabaseClient
         .from('profiles')
         .upsert({
-          id:        userId,
-          username,
-          full_name: pendingReg.name,
+          id:   userId,
+          name: pendingReg.name,
         }, { onConflict: 'id' });
       if (profileError) console.warn('[Hatch] profile upsert failed:', profileError.message);
     }
