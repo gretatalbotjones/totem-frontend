@@ -2870,7 +2870,7 @@
     </div>
 
     <!-- Collections Strip -->
-    <div class="diaries-strip" style="padding: 4px 20px 8px 8px; border-bottom: 1px solid var(--border);">
+    <div class="diaries-strip" id="profileDiariesStrip" style="padding: 4px 20px 8px 8px; border-bottom: 1px solid var(--border);">
       <div class="diary-item" style="cursor:pointer;" onclick="showToast('Create a new Collection')">
         <div class="diary-ring own">
           <div class="diary-ring-inner">
@@ -8244,9 +8244,11 @@ function enterApp(user, newUser, welcomeMsg) {
     currentUser.diary = [..._DEMO_DIARY];
     collectionsData.length = 0;
     _DEMO_COLLECTIONS.forEach(c => collectionsData.push({ ...c }));
+    document.querySelectorAll('#profileDiariesStrip .diary-item').forEach((el, i) => { if (i > 0) el.style.display = ''; });
   } else {
     currentUser.diary = [];
     collectionsData.length = 0;
+    document.querySelectorAll('#profileDiariesStrip .diary-item').forEach((el, i) => { if (i > 0) el.style.display = 'none'; });
   }
 
   // Refresh app UI for this user — runs inside setTimeout so DOM is visible
@@ -8287,6 +8289,7 @@ function enterApp(user, newUser, welcomeMsg) {
     renderNotifs();
     renderMessages();
     renderProfileGallery();
+    renderCollections();
     renderTagList();
     selectPlan('free');
     updateNotifBadge();
