@@ -3324,6 +3324,13 @@
     </div>
     <input type="text" id="editName" placeholder="Display name" />
     <input type="text" id="editBio" placeholder="Bio (location, interests...)" />
+    <div style="margin:4px 0 14px;">
+      <div style="font-size:0.8rem;color:var(--muted);margin-bottom:6px;">Avatar</div>
+      <input type="file" id="editAvatarInput" accept="image/*" style="font-size:0.85rem;color:var(--text);width:100%;" onchange="previewEditAvatar(this)" />
+      <div id="editAvatarPreview" style="display:none;margin-top:8px;">
+        <img id="editAvatarImg" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--border);" />
+      </div>
+    </div>
     <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
   </div>
 </div>
@@ -3541,19 +3548,24 @@
       <input type="date" id="eventDate" />
       <input type="time" id="eventTime" />
     </div>
+    <div class="form-row" style="display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center;margin-bottom:12px;">
+      <span style="font-size:0.8rem;color:var(--muted);white-space:nowrap;">Ends at</span>
+      <input type="time" id="eventEndTime" />
+    </div>
     <input type="text" id="eventLocation" placeholder="📍 Location or link" />
 
     <!-- Privacy toggle -->
     <div style="margin-bottom:14px;">
       <div style="font-size:0.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Event visibility</div>
-      <div style="display:flex;gap:8px;">
-        <div id="evPrivPublic" class="audience-chip active" onclick="setEventPrivacy('public')">🌐 Public</div>
-        <div id="evPrivPrivate" class="audience-chip" onclick="setEventPrivacy('private')">🔒 Private (invite only)</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <div id="evPrivPublic"    class="audience-chip active" onclick="setEventPrivacy('public')">🌐 Public</div>
+        <div id="evPrivFollowers" class="audience-chip"        onclick="setEventPrivacy('private')">👥 Followers</div>
+        <div id="evPrivInvite"    class="audience-chip"        onclick="setEventPrivacy('invite')">✉️ Invite only</div>
       </div>
       <div id="evPrivDesc" style="font-size:0.75rem;color:var(--muted);margin-top:6px;line-height:1.5;">Anyone can discover and join this event.</div>
     </div>
 
-    <div style="margin-bottom:10px;">
+    <div id="inviteSection" style="display:none;margin-bottom:10px;">
       <div style="font-size:0.82rem; color:var(--muted); margin-bottom:6px;">Invite people</div>
       <div id="inviteCheckboxes"></div>
     </div>
@@ -4873,8 +4885,26 @@ function handleDiaryPhoto(input) {
   reader.readAsDataURL(input.files[0]);
 }
 
-function submitDiaryEntry() {
+async function submitDiaryEntry() {
+  const caption  = document.getElementById('diaryCaption').value.trim();
+  const hasPhoto = document.getElementById('diaryPreviewWrap').style.display !== 'none';
+  const imageUrl = hasPhoto ? document.getElementById('diaryPreview').src : null;
+
   closeModal('diaryModal');
+  addDiaryItemToStrip(imageUrl, caption, Date.now());
+
+  if (supabaseClient && currentUser.id) {
+    const { error } = await supabaseClient.from('posts').insert({
+      user_id:    currentUser.id,
+      content:    caption || null,
+      image_url:  imageUrl || null,
+      feed_type:  'diary',
+      visibility: 'friends',
+      created_at: new Date().toISOString(),
+    });
+    if (error) console.warn('[Totem] diary save failed:', error.message);
+  }
+
   showToast('Added to your diary ✦');
 }
 
@@ -4907,12 +4937,18 @@ function openPostModal() {
 
 function openCreateEventModal() {
   closeCreateMenu();
-  buildInviteCheckboxes();
-  document.getElementById('eventTitle').value = '';
-  document.getElementById('eventDesc').value = '';
-  document.getElementById('eventDate').value = '';
-  document.getElementById('eventTime').value = '';
+  if (currentUser.name === DEMO_ACCOUNT_NAME) {
+    buildInviteCheckboxes();
+  } else {
+    loadFollowersForPicker();
+  }
+  document.getElementById('eventTitle').value   = '';
+  document.getElementById('eventDesc').value    = '';
+  document.getElementById('eventDate').value    = '';
+  document.getElementById('eventTime').value    = '';
+  document.getElementById('eventEndTime').value = '';
   document.getElementById('eventLocation').value = '';
+  setEventPrivacy('public');
   openModal('createEventModal');
 }
 
@@ -4938,7 +4974,23 @@ function openAvailabilityModal() {
 }
 
 function openSettingsModal() { openModal('settingsModal'); }
-function openEditProfileModal() { openModal('editProfileModal'); }
+function openEditProfileModal() {
+  document.getElementById('editName').value = currentUser.name || '';
+  document.getElementById('editBio').value  = document.getElementById('profileBio')?.textContent || '';
+  document.getElementById('editAvatarInput').value = '';
+  document.getElementById('editAvatarPreview').style.display = 'none';
+  openModal('editProfileModal');
+}
+
+function previewEditAvatar(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('editAvatarImg').src = e.target.result;
+    document.getElementById('editAvatarPreview').style.display = 'block';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
 
 function openShareProfileModal() {
   const name = document.getElementById('profileName')?.textContent || 'user';
@@ -5847,22 +5899,53 @@ function buildInviteCheckboxes() {
 
 const EVENT_EMOJIS = ['🎉','🎨','🍽️','🎵','🏕️','🌿','🎭','🏖️','🎤','🥂'];
 
-function createEvent() {
+async function createEvent() {
   const title    = document.getElementById('eventTitle').value.trim();
   const desc     = document.getElementById('eventDesc').value.trim();
   const date     = document.getElementById('eventDate').value;
   const time     = document.getElementById('eventTime').value;
+  const endTime  = document.getElementById('eventEndTime').value;
   const location = document.getElementById('eventLocation').value.trim();
   if (!title) { alert('Please give your event a name!'); return; }
 
-  const checked  = [...document.querySelectorAll('#inviteCheckboxes input:checked')].map(cb => cb.value);
-  const invitees = checked.map(name => { const c = contacts.find(c=>c.name===name); return { name, initial: c?c.initial:name[0], rsvp: 'pending' }; });
+  const checkedInputs = [...document.querySelectorAll('#inviteCheckboxes input:checked')];
+  const checked  = checkedInputs.map(cb => cb.value);
+  const invitees = checked.map(name => {
+    const c = contacts.find(c => c.name === name);
+    const inputEl = checkedInputs.find(cb => cb.value === name);
+    return { name, initial: c ? c.initial : name[0], rsvp: 'pending', _profileId: inputEl?.dataset?.id || null };
+  });
 
-  events.push({ id: nextEventId++, host: currentUser.name, hostInitial: currentUser.initial, title, desc, date, time, location, emoji: EVENT_EMOJIS[Math.floor(Math.random()*EVENT_EMOJIS.length)], invitees });
+  const startsAt = date && time    ? `${date}T${time}:00`    : (date ? `${date}T00:00:00` : null);
+  const endsAt   = date && endTime ? `${date}T${endTime}:00` : null;
+
+  events.push({
+    id: nextEventId++, host: currentUser.name, hostInitial: currentUser.initial,
+    title, desc, date, time, endTime, location,
+    emoji: EVENT_EMOJIS[Math.floor(Math.random() * EVENT_EMOJIS.length)],
+    invitees, visibility: eventPrivacy,
+  });
 
   if (invitees.length > 0) {
     notifications.unshift({ id: Date.now(), icon:'📅', text:`You invited <strong>${invitees.map(i=>i.name).join(', ')}</strong> to <strong>${title}</strong>.`, time:'just now', unread: false });
     updateNotifBadge();
+  }
+
+  // Persist to Supabase for non-demo users
+  if (supabaseClient && currentUser.id && currentUser.name !== DEMO_ACCOUNT_NAME) {
+    const { data: evRow, error: evErr } = await supabaseClient
+      .from('events')
+      .insert({ user_id: currentUser.id, title, description: desc || null, location: location || null, starts_at: startsAt, ends_at: endsAt, visibility: eventPrivacy, created_at: new Date().toISOString() })
+      .select().single();
+    if (evErr) {
+      console.warn('[Totem] event create failed:', evErr.message);
+    } else if (evRow && eventPrivacy === 'invite') {
+      const rows = invitees.filter(i => i._profileId).map(i => ({ event_id: evRow.id, invitee_id: i._profileId, rsvp: 'pending' }));
+      if (rows.length > 0) {
+        const { error: invErr } = await supabaseClient.from('event_invites').insert(rows);
+        if (invErr) console.warn('[Totem] event invites failed:', invErr.message);
+      }
+    }
   }
 
   renderEvents();
@@ -7093,13 +7176,41 @@ function selectGridPhoto(index) {
   });
 }
 
-function saveProfile() {
+async function saveProfile() {
   const name = document.getElementById('editName').value.trim();
   const bio  = document.getElementById('editBio').value.trim();
-  if (name) { currentUser.name = name; document.getElementById('profileName').textContent = name; }
-  if (bio)  document.getElementById('profileBio').textContent = bio;
+
+  if (name) {
+    currentUser.name = name;
+    document.getElementById('profileName').textContent = name;
+  }
+  document.getElementById('profileBio').textContent = bio;
+
+  // Avatar: read file as data URL if one was chosen
+  let avatarUrl = null;
+  const avatarInput = document.getElementById('editAvatarInput');
+  if (avatarInput.files && avatarInput.files[0]) {
+    avatarUrl = await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result);
+      reader.readAsDataURL(avatarInput.files[0]);
+    });
+    currentUser.avatar = avatarUrl;
+    const picEl = document.getElementById('profilePic');
+    if (picEl) picEl.innerHTML = `<img src="${avatarUrl}" alt="${currentUser.name}" />`;
+  }
+
+  // Persist to Supabase
+  if (supabaseClient && currentUser.id) {
+    const updates = { full_name: currentUser.name, bio };
+    if (name) updates.name = name;
+    if (avatarUrl) updates.avatar_url = avatarUrl;
+    const { error } = await supabaseClient.from('profiles').update(updates).eq('id', currentUser.id);
+    if (error) console.warn('[Totem] profile update failed:', error.message);
+  }
+
   document.getElementById('editName').value = '';
-  document.getElementById('editBio').value = '';
+  document.getElementById('editBio').value  = '';
   renderProfileGallery();
   closeModal('editProfileModal');
 }
@@ -7472,11 +7583,16 @@ let eventPrivacy = 'public';
 
 function setEventPrivacy(mode) {
   eventPrivacy = mode;
-  document.getElementById('evPrivPublic').classList.toggle('active', mode === 'public');
-  document.getElementById('evPrivPrivate').classList.toggle('active', mode === 'private');
-  document.getElementById('evPrivDesc').textContent = mode === 'private'
-    ? 'Only invited people can see this event.'
-    : 'Anyone can discover and join this event.';
+  document.getElementById('evPrivPublic').classList.toggle('active',    mode === 'public');
+  document.getElementById('evPrivFollowers').classList.toggle('active', mode === 'private');
+  document.getElementById('evPrivInvite').classList.toggle('active',    mode === 'invite');
+  const descs = {
+    public:  'Anyone can discover and join this event.',
+    private: 'Only your followers can see this event.',
+    invite:  'Only people you specifically invite can see this event.',
+  };
+  document.getElementById('evPrivDesc').textContent = descs[mode] || descs.public;
+  document.getElementById('inviteSection').style.display = mode === 'invite' ? '' : 'none';
 }
 
 // ══════════════════════════════════════════
@@ -8395,6 +8511,13 @@ function enterApp(user, newUser, welcomeMsg) {
     selectPlan('free');
     updateNotifBadge();
 
+    // For non-demo accounts load real data from Supabase
+    if (!isDemoAccount) {
+      loadFeedFromSupabase();
+      loadProfileDiaries();
+      loadEventsFromSupabase();
+    }
+
     const tabBar = document.querySelector('.tab-bar');
     const tabBarBottom = tabBar ? (window.innerHeight - tabBar.getBoundingClientRect().top) + 'px' : '78px';
     const feedSubNav = document.getElementById('feedSubNav');
@@ -8711,6 +8834,211 @@ function saveCurrentGroup() {
   renderGroupTabs();
   showToast(`✓ "${grp.name}" saved`);
   closeModal('groupManagerModal');
+}
+
+// ══════════════════════════════════════════
+//  MVP FEATURES — Supabase data loaders
+// ══════════════════════════════════════════
+
+// ── Diary strip helpers ───────────────────
+
+function addDiaryItemToStrip(imageUrl, caption, entryId) {
+  const strip = document.getElementById('profileDiariesStrip');
+  if (!strip) return;
+  const item = document.createElement('div');
+  item.className = 'diary-item real-diary-entry';
+  item.style.cursor = 'pointer';
+  item.dataset.entryId = String(entryId);
+  item.onclick = () => showToast('📔 ' + (caption || 'Diary entry').slice(0, 40));
+  item.innerHTML = `
+    <div class="diary-ring own">
+      <div class="diary-ring-inner" style="overflow:hidden;padding:0;">
+        ${imageUrl
+          ? `<img src="${imageUrl}" alt="diary" style="width:100%;height:100%;object-fit:cover;" />`
+          : `<span style="font-size:1.4rem;">📔</span>`}
+      </div>
+    </div>
+    <span class="diary-name">${(caption || 'Entry').split(' ').slice(0, 2).join(' ') || 'Entry'}</span>
+  `;
+  const newBtn = strip.querySelector('.diary-item:first-child');
+  if (newBtn) {
+    strip.insertBefore(item, newBtn.nextSibling);
+  } else {
+    strip.appendChild(item);
+  }
+}
+
+async function loadProfileDiaries() {
+  if (!supabaseClient || !currentUser.id) return;
+  document.querySelectorAll('#profileDiariesStrip .real-diary-entry').forEach(el => el.remove());
+  const { data, error } = await supabaseClient
+    .from('posts')
+    .select('id, content, image_url')
+    .eq('user_id', currentUser.id)
+    .eq('feed_type', 'diary')
+    .order('created_at', { ascending: false })
+    .limit(20);
+  if (error) { console.warn('[Totem] loadProfileDiaries failed:', error.message); return; }
+  (data || []).forEach(e => addDiaryItemToStrip(e.image_url, e.content, e.id));
+}
+
+// ── Feed loader ───────────────────────────
+
+async function loadFeedFromSupabase() {
+  if (!supabaseClient || !currentUser.id) return;
+  const { data, error } = await supabaseClient
+    .from('posts')
+    .select('id, content, image_url, feed_type, visibility, created_at, profiles(name, full_name, avatar_url)')
+    .neq('feed_type', 'diary')
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) { console.warn('[Totem] feed load failed:', error.message); return; }
+  posts.length = 0;
+  (data || []).forEach(p => {
+    const prof = p.profiles || {};
+    const authorName = prof.name || prof.full_name || 'Someone';
+    posts.push({
+      id: p.id, user: authorName, initial: authorName[0].toUpperCase(), avatar: prof.avatar_url || null,
+      images: p.image_url ? [p.image_url] : [], caption: p.content || '',
+      likes: 0, liked: false, comments: [],
+      time: new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+      feedType: p.feed_type || 'personal', audience: p.visibility || 'public',
+      audienceLabel: p.visibility || 'everyone', taggedPeople: [],
+      authStatus: 'real', aiDeclared: false,
+    });
+  });
+  nextPostId = Date.now();
+  renderFeed();
+}
+
+// ── Events loader ─────────────────────────
+
+async function loadEventsFromSupabase() {
+  if (!supabaseClient || !currentUser.id) return;
+  const { data, error } = await supabaseClient
+    .from('events')
+    .select('*')
+    .order('starts_at', { ascending: true });
+  if (error) { console.warn('[Totem] events load failed:', error.message); return; }
+  events.length = 0;
+  (data || []).forEach(e => {
+    events.push({
+      id: e.id, host: currentUser.name, hostInitial: currentUser.initial,
+      title: e.title, desc: e.description,
+      date: e.starts_at ? e.starts_at.slice(0, 10) : null,
+      time: e.starts_at ? e.starts_at.slice(11, 16) : null,
+      endTime: e.ends_at ? e.ends_at.slice(11, 16) : null,
+      location: e.location, visibility: e.visibility,
+      emoji: EVENT_EMOJIS[Math.floor(Math.random() * EVENT_EMOJIS.length)],
+      invitees: [],
+    });
+  });
+  renderEvents();
+  renderCalendar();
+}
+
+// ── Follower picker (for event invite-only) ──
+
+async function loadFollowersForPicker() {
+  const container = document.getElementById('inviteCheckboxes');
+  if (!container) return;
+  if (!supabaseClient || !currentUser.id) {
+    container.innerHTML = '<div style="font-size:0.82rem;color:var(--muted);">Sign in to invite people ✦</div>';
+    return;
+  }
+  const { data, error } = await supabaseClient
+    .from('follows')
+    .select('following_id, profiles!following_id(id, name, full_name, avatar_url)')
+    .eq('follower_id', currentUser.id);
+  if (error) { console.warn('[Totem] loadFollowersForPicker failed:', error.message); return; }
+  if (!data || data.length === 0) {
+    container.innerHTML = '<div style="font-size:0.82rem;color:var(--muted);">No followers yet ✦</div>';
+    return;
+  }
+  container.innerHTML = data.map(row => {
+    const p = row.profiles || {};
+    const nm = p.name || p.full_name || 'Unknown';
+    return `<label style="display:flex;align-items:center;gap:10px;margin-bottom:9px;cursor:pointer;font-size:0.87rem;">
+      <input type="checkbox" value="${nm}" data-id="${p.id}" style="width:auto;margin-bottom:0;accent-color:var(--accent);" />
+      <span style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#3d4494,#191D64);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.7rem;font-weight:700;color:white;">${nm[0].toUpperCase()}</span>
+      ${nm}
+    </label>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+//  MVP TESTS — call runMVPTests() in console
+// ══════════════════════════════════════════
+
+async function runMVPTests() {
+  console.group('%c[Totem MVP Tests]', 'font-weight:bold;color:#6c63ff;');
+
+  // ── Feature 1: Profile editing ────────────
+  console.group('Feature 1: Profile editing');
+  if (!supabaseClient || !currentUser.id) {
+    console.warn('SKIP — not logged in');
+  } else {
+    const testBio = 'mvp-test-' + Date.now();
+    const { error: updErr } = await supabaseClient.from('profiles').update({ bio: testBio }).eq('id', currentUser.id);
+    if (updErr) { console.error('FAIL — update error:', updErr.message); }
+    else {
+      const { data } = await supabaseClient.from('profiles').select('bio').eq('id', currentUser.id).single();
+      console.log(data?.bio === testBio ? 'PASS — bio saved and read back' : 'FAIL — mismatch', data?.bio);
+    }
+  }
+  console.groupEnd();
+
+  // ── Feature 2: Diary entries ──────────────
+  console.group('Feature 2: Diary entries');
+  if (!supabaseClient || !currentUser.id) {
+    console.warn('SKIP — not logged in');
+  } else {
+    const { data: row, error } = await supabaseClient
+      .from('posts')
+      .insert({ user_id: currentUser.id, content: 'test diary', feed_type: 'diary', visibility: 'friends', created_at: new Date().toISOString() })
+      .select().single();
+    if (error) { console.error('FAIL — diary insert:', error.message); }
+    else {
+      console.log(row?.feed_type === 'diary' ? 'PASS — diary row saved with feed_type=diary' : 'FAIL', row?.id);
+      await supabaseClient.from('posts').delete().eq('id', row.id);
+    }
+  }
+  console.groupEnd();
+
+  // ── Feature 3: Event creation ─────────────
+  console.group('Feature 3: Events');
+  if (!supabaseClient || !currentUser.id) {
+    console.warn('SKIP — not logged in');
+  } else {
+    const { data: ev, error } = await supabaseClient
+      .from('events')
+      .insert({ user_id: currentUser.id, title: 'Test Event', visibility: 'public', created_at: new Date().toISOString() })
+      .select().single();
+    if (error) { console.error('FAIL — event insert:', error.message); }
+    else {
+      console.log(ev?.title === 'Test Event' ? 'PASS — event saved to events table' : 'FAIL', ev?.id);
+      await supabaseClient.from('events').delete().eq('id', ev.id);
+    }
+  }
+  console.groupEnd();
+
+  // ── Feature 4: Feed from Supabase ─────────
+  console.group('Feature 4: Feed');
+  if (!supabaseClient || !currentUser.id) {
+    console.warn('SKIP — not logged in');
+  } else {
+    const { data, error } = await supabaseClient
+      .from('posts')
+      .select('id, content, user_id')
+      .neq('feed_type', 'diary')
+      .order('created_at', { ascending: false })
+      .limit(5);
+    if (error) { console.error('FAIL — feed query:', error.message); }
+    else { console.log('PASS — feed query returned', data?.length ?? 0, 'posts'); }
+  }
+  console.groupEnd();
+
+  console.groupEnd();
 }
 
 // ── Init ─────────────────────────────────
