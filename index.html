@@ -1525,7 +1525,8 @@
 
   /* ── Friend profile modal ── */
   #friendProfileModal {
-    display: none; position: fixed; inset: 0;
+    display: none; position: fixed; top: 0; bottom: 0; left: 0; right: 0;
+    max-width: 600px; margin: 0 auto;
     background: var(--bg); z-index: 350;
     flex-direction: column; overflow-y: auto;
   }
