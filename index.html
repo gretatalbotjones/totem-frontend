@@ -3887,13 +3887,18 @@
 // ══════════════════════════════════════════
 //  SUPABASE CLIENT
 // ══════════════════════════════════════════
-const supabaseClient = supabase.createClient(
-  'https://ocztxpmmbopcbtshetts.supabase.co',
-  'sb_publishable_QcqD9p8Wk8zHRV-dsSQ4Xw_bVkdC2fy'
-);
+let supabaseClient = null;
+try {
+  supabaseClient = supabase.createClient(
+    'https://ocztxpmmbopcbtshetts.supabase.co',
+    'sb_publishable_QcqD9p8Wk8zHRV-dsSQ4Xw_bVkdC2fy'
+  );
+} catch (e) {
+  console.warn('[Totem] Supabase init failed — offline mode:', e.message);
+}
 
 // Restore session on page load
-supabaseClient.auth.onAuthStateChange((event, session) => {
+if (supabaseClient) supabaseClient.auth.onAuthStateChange((event, session) => {
   if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session) {
     if (registrationInProgress) return; // wait until video verification is done
     const u = session.user;

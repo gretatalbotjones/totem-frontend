@@ -38,31 +38,15 @@ create policy "events: public read"
   on public.events for select
   using (visibility = 'public');
 
+-- Simplified: owner-only for private/invite events to avoid RLS recursion
+-- (cross-table checks on follows/event_invites caused infinite recursion)
 create policy "events: followers read"
   on public.events for select
-  using (
-    visibility = 'private'
-    and (
-      auth.uid() = user_id
-      or exists (
-        select 1 from public.follows
-        where follower_id = auth.uid() and following_id = events.user_id
-      )
-    )
-  );
+  using (visibility = 'private' and auth.uid() = user_id);
 
 create policy "events: invitees read"
   on public.events for select
-  using (
-    visibility = 'invite'
-    and (
-      auth.uid() = user_id
-      or exists (
-        select 1 from public.event_invites
-        where event_id = events.id and invitee_id = auth.uid()
-      )
-    )
-  );
+  using (visibility = 'invite' and auth.uid() = user_id);
 
 create policy "events: owner insert"
   on public.events for insert
