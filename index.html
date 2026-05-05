@@ -5563,8 +5563,9 @@ function renderFeed() {
   const postCountEl = document.getElementById('postCount');
   if (postCountEl) postCountEl.textContent = posts.filter(p => p.user === currentUser.name).length;
 
-  if (posts.length === 0) { emptyMsg.style.display = 'block'; feed.innerHTML = ''; feed.appendChild(emptyMsg); return; }
-  emptyMsg.style.display = 'none';
+  if (posts.length === 0) { if (emptyMsg) emptyMsg.style.display = 'block'; if (feed) { feed.innerHTML = ''; if (emptyMsg) feed.appendChild(emptyMsg); } return; }
+  if (emptyMsg) emptyMsg.style.display = 'none';
+  if (!feed) return;
   feed.innerHTML = '';
 
   // Explore: algorithm-ordered queue blending all types; other modes: normal order
