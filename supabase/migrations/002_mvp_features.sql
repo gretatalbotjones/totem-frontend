@@ -92,15 +92,11 @@ drop policy if exists "event_invites: read"           on public.event_invites;
 drop policy if exists "event_invites: owner insert"   on public.event_invites;
 drop policy if exists "event_invites: invitee update" on public.event_invites;
 
+-- Only invitees can read their own invite rows.
+-- (Referencing events here would create mutual recursion with "events: invitees read".)
 create policy "event_invites: read"
   on public.event_invites for select
-  using (
-    invitee_id = auth.uid()
-    or exists (
-      select 1 from public.events
-      where id = event_invites.event_id and user_id = auth.uid()
-    )
-  );
+  using (invitee_id = auth.uid());
 
 create policy "event_invites: owner insert"
   on public.event_invites for insert

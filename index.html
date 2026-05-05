@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HATCH</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/exifr/dist/full.umd.cjs" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/exifr/dist/full.umd.js" async defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -4896,7 +4896,7 @@ async function submitDiaryEntry() {
   if (supabaseClient && currentUser.id) {
     const { error } = await supabaseClient.from('posts').insert({
       user_id:    currentUser.id,
-      content:    caption || null,
+      caption:    caption || null,
       image_url:  imageUrl || null,
       feed_type:  'diary',
       visibility: 'friends',
@@ -8873,13 +8873,13 @@ async function loadProfileDiaries() {
   document.querySelectorAll('#profileDiariesStrip .real-diary-entry').forEach(el => el.remove());
   const { data, error } = await supabaseClient
     .from('posts')
-    .select('id, content, image_url')
+    .select('id, caption, image_url')
     .eq('user_id', currentUser.id)
     .eq('feed_type', 'diary')
     .order('created_at', { ascending: false })
     .limit(20);
   if (error) { console.warn('[Totem] loadProfileDiaries failed:', error.message); return; }
-  (data || []).forEach(e => addDiaryItemToStrip(e.image_url, e.content, e.id));
+  (data || []).forEach(e => addDiaryItemToStrip(e.image_url, e.caption, e.id));
 }
 
 // ── Feed loader ───────────────────────────
@@ -8888,7 +8888,7 @@ async function loadFeedFromSupabase() {
   if (!supabaseClient || !currentUser.id) return;
   const { data, error } = await supabaseClient
     .from('posts')
-    .select('id, content, image_url, feed_type, visibility, created_at, profiles(name, full_name, avatar_url)')
+    .select('id, caption, image_url, feed_type, visibility, created_at, profiles!posts_user_id_fkey(name, avatar_url)')
     .neq('feed_type', 'diary')
     .order('created_at', { ascending: false })
     .limit(50);
@@ -8896,10 +8896,10 @@ async function loadFeedFromSupabase() {
   posts.length = 0;
   (data || []).forEach(p => {
     const prof = p.profiles || {};
-    const authorName = prof.name || prof.full_name || 'Someone';
+    const authorName = prof.name || 'Someone';
     posts.push({
       id: p.id, user: authorName, initial: authorName[0].toUpperCase(), avatar: prof.avatar_url || null,
-      images: p.image_url ? [p.image_url] : [], caption: p.content || '',
+      images: p.image_url ? [p.image_url] : [], caption: p.caption || '',
       likes: 0, liked: false, comments: [],
       time: new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
       feedType: p.feed_type || 'personal', audience: p.visibility || 'public',

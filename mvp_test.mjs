@@ -36,7 +36,7 @@ if (!userId) { skip('no session'); }
 else {
   const { data: row, error } = await sb
     .from('posts')
-    .insert({ user_id: userId, content: 'test diary entry', feed_type: 'diary', visibility: 'friends', created_at: new Date().toISOString() })
+    .insert({ user_id: userId, caption: 'test diary entry', feed_type: 'diary', visibility: 'friends', created_at: new Date().toISOString() })
     .select().single();
   if (error) { fail('diary insert: ' + error.message); }
   else {
