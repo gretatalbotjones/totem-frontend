@@ -7164,7 +7164,7 @@ function renderProfileGallery() {
       const imgs = p.images || (p.image ? [p.image] : []);
       const img = imgs[0] || '';
       const badge = imgs.length > 1 ? `<div class="carousel-badge">⧉ ${imgs.length}</div>` : '';
-      return `<div class="photo-grid-wrap"><div class="photo-grid-item" onclick="selectGridPhoto(${i})">${badge}<img src="${img}" alt="${p.caption}" loading="lazy" /><div class="grid-overlay"><span>♥ ${p.likes}</span><span>💬 ${(p.comments||[]).length}</span></div></div><div class="post-menu-wrap"><button class="post-menu-btn" onclick="togglePostMenu('${p.id}',event)">⋯</button><div class="post-menu-dropdown" id="pmenu-${p.id}"><button onclick="deletePost('${p.id}')">Delete post</button></div></div></div>`;
+      return `<div class="photo-grid-wrap"><div class="photo-grid-item" onclick="selectGridPhoto(${i})">${badge}<img src="${img}" alt="${p.caption}" /><div class="grid-overlay"><span>♥ ${p.likes}</span><span>💬 ${(p.comments||[]).length}</span></div></div><div class="post-menu-wrap"><button class="post-menu-btn" onclick="togglePostMenu('${p.id}',event)">⋯</button><div class="post-menu-dropdown" id="pmenu-${p.id}"><button onclick="deletePost('${p.id}')">Delete post</button></div></div></div>`;
     }).join('')}</div>`;
   } else {
     gallery.innerHTML = `<div class="photo-linear">${myPosts.map(p => {
@@ -7172,11 +7172,11 @@ function renderProfileGallery() {
       const isCarousel = imgs.length > 1;
       let mediaHtml = '';
       if (isCarousel) {
-        const slides = imgs.map((src, i) => `<div class="post-carousel-slide"><img src="${src}" alt="slide ${i+1}" loading="lazy" /></div>`).join('');
+        const slides = imgs.map((src, i) => `<div class="post-carousel-slide"><img src="${src}" alt="slide ${i+1}" /></div>`).join('');
         const dots = imgs.map((_, i) => `<span class="${i===0?'active':''}"></span>`).join('');
         mediaHtml = `<div class="post-carousel" id="carousel-${p.id}"><div class="post-carousel-track" id="carousel-track-${p.id}">${slides}</div><button class="post-carousel-btn prev" onclick="carouselPrev(${p.id})">‹</button><button class="post-carousel-btn next" onclick="carouselNext(${p.id})">›</button><div class="post-carousel-dots">${dots}</div><div class="post-carousel-counter">1 / ${imgs.length}</div></div>`;
       } else if (imgs.length === 1) {
-        mediaHtml = `<img src="${imgs[0]}" alt="${p.caption}" loading="lazy" class="post-image" />`;
+        mediaHtml = `<img src="${imgs[0]}" alt="${p.caption}" class="post-image" />`;
       }
       const commentsHtml = (p.comments||[]).map(c => buildCommentHtml(c)).join('');
       return `<div class="photo-linear-item"><div class="post-menu-wrap"><button class="post-menu-btn" onclick="togglePostMenu('${p.id}',event)">⋯</button><div class="post-menu-dropdown" id="pmenu-${p.id}"><button onclick="deletePost('${p.id}')">Delete post</button></div></div>${mediaHtml}<div class="photo-linear-caption"><div class="caption-outer"><div class="caption-block clamped" id="pcap-${p.id}"><strong>${currentUser.name}</strong> ${p.caption}</div><span class="caption-more" onclick="expandCaption(${p.id}, 'profile')">... more</span></div></div><div class="photo-linear-meta"><span>♥ ${p.likes} likes</span><button class="comment-toggle" onclick="toggleComments(${p.id})" style="background:none;border:none;cursor:pointer;font-size:0.82rem;color:var(--muted);padding:0;">💬 ${(p.comments||[]).length} comments</button><span style="margin-left:auto;">${p.time}</span></div><div class="comments-section" id="comments-${p.id}"><div class="comment-list" id="comment-list-${p.id}">${commentsHtml}</div><div class="comment-form"><input type="text" id="comment-input-${p.id}" placeholder="Add a comment…" /><button onclick="addComment(${p.id})">Post</button></div></div></div>`;
