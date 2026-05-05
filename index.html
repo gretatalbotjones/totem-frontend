@@ -1588,11 +1588,19 @@
   .photo-grid-item .carousel-badge { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.55); color: white; border-radius: 8px; padding: 2px 7px; font-size: 0.68rem; font-weight: 700; backdrop-filter: blur(4px); pointer-events: none; }
 
   .photo-linear { display: flex; flex-direction: column; gap: 0; margin-top: 4px; }
-  .photo-linear-item { background: var(--surface); border: none; border-bottom: 2px solid var(--border); border-radius: 0; overflow: hidden; box-shadow: none; }
+  .photo-linear-item { position: relative; background: var(--surface); border: none; border-bottom: 2px solid var(--border); border-radius: 0; box-shadow: none; }
   .photo-linear-item img { width: 100%; max-height: 400px; object-fit: cover; display: block; border-bottom: 1px solid var(--border); }
   .photo-linear-caption { padding: 10px 14px; font-size: 0.86rem; line-height: 1.5; color: var(--text); }
   .photo-linear-caption strong { color: var(--accent); margin-right: 5px; font-weight: 600; }
   .photo-linear-meta { display: flex; gap: 14px; align-items: center; padding: 0 14px 12px; font-size: 0.78rem; color: var(--muted); }
+  .photo-grid-wrap { position: relative; aspect-ratio: 1/1; }
+  .photo-grid-wrap > .photo-grid-item { position: absolute; inset: 0; aspect-ratio: auto; }
+  .post-menu-wrap { position: absolute; top: 6px; right: 6px; z-index: 10; }
+  .post-menu-btn { background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 6px; width: 28px; height: 28px; cursor: pointer; font-size: 1rem; line-height: 1; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 0; }
+  .post-menu-dropdown { display: none; position: absolute; top: 32px; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-md); min-width: 130px; z-index: 50; overflow: hidden; }
+  .post-menu-dropdown.open { display: block; }
+  .post-menu-dropdown button { width: 100%; padding: 10px 14px; text-align: left; background: none; border: none; cursor: pointer; font-size: 0.84rem; color: var(--red); display: block; }
+  .post-menu-dropdown button:hover { background: var(--surface2); }
 
   /* ── FOLLOWING LIST ── */
   .following-section { margin-bottom: 20px; }
@@ -7156,7 +7164,7 @@ function renderProfileGallery() {
       const imgs = p.images || (p.image ? [p.image] : []);
       const img = imgs[0] || '';
       const badge = imgs.length > 1 ? `<div class="carousel-badge">⧉ ${imgs.length}</div>` : '';
-      return `<div class="photo-grid-item" onclick="selectGridPhoto(${i})">${badge}<img src="${img}" alt="${p.caption}" loading="lazy" /><div class="grid-overlay"><span>♥ ${p.likes}</span><span>💬 ${(p.comments||[]).length}</span></div></div>`;
+      return `<div class="photo-grid-wrap"><div class="photo-grid-item" onclick="selectGridPhoto(${i})">${badge}<img src="${img}" alt="${p.caption}" loading="lazy" /><div class="grid-overlay"><span>♥ ${p.likes}</span><span>💬 ${(p.comments||[]).length}</span></div></div><div class="post-menu-wrap"><button class="post-menu-btn" onclick="togglePostMenu('${p.id}',event)">⋯</button><div class="post-menu-dropdown" id="pmenu-${p.id}"><button onclick="deletePost('${p.id}')">Delete post</button></div></div></div>`;
     }).join('')}</div>`;
   } else {
     gallery.innerHTML = `<div class="photo-linear">${myPosts.map(p => {
@@ -7171,7 +7179,7 @@ function renderProfileGallery() {
         mediaHtml = `<img src="${imgs[0]}" alt="${p.caption}" loading="lazy" class="post-image" />`;
       }
       const commentsHtml = (p.comments||[]).map(c => buildCommentHtml(c)).join('');
-      return `<div class="photo-linear-item">${mediaHtml}<div class="photo-linear-caption"><div class="caption-outer"><div class="caption-block clamped" id="pcap-${p.id}"><strong>${currentUser.name}</strong> ${p.caption}</div><span class="caption-more" onclick="expandCaption(${p.id}, 'profile')">... more</span></div></div><div class="photo-linear-meta"><span>♥ ${p.likes} likes</span><button class="comment-toggle" onclick="toggleComments(${p.id})" style="background:none;border:none;cursor:pointer;font-size:0.82rem;color:var(--muted);padding:0;">💬 ${(p.comments||[]).length} comments</button><span style="margin-left:auto;">${p.time}</span></div><div class="comments-section" id="comments-${p.id}"><div class="comment-list" id="comment-list-${p.id}">${commentsHtml}</div><div class="comment-form"><input type="text" id="comment-input-${p.id}" placeholder="Add a comment…" /><button onclick="addComment(${p.id})">Post</button></div></div></div>`;
+      return `<div class="photo-linear-item"><div class="post-menu-wrap"><button class="post-menu-btn" onclick="togglePostMenu('${p.id}',event)">⋯</button><div class="post-menu-dropdown" id="pmenu-${p.id}"><button onclick="deletePost('${p.id}')">Delete post</button></div></div>${mediaHtml}<div class="photo-linear-caption"><div class="caption-outer"><div class="caption-block clamped" id="pcap-${p.id}"><strong>${currentUser.name}</strong> ${p.caption}</div><span class="caption-more" onclick="expandCaption(${p.id}, 'profile')">... more</span></div></div><div class="photo-linear-meta"><span>♥ ${p.likes} likes</span><button class="comment-toggle" onclick="toggleComments(${p.id})" style="background:none;border:none;cursor:pointer;font-size:0.82rem;color:var(--muted);padding:0;">💬 ${(p.comments||[]).length} comments</button><span style="margin-left:auto;">${p.time}</span></div><div class="comments-section" id="comments-${p.id}"><div class="comment-list" id="comment-list-${p.id}">${commentsHtml}</div><div class="comment-form"><input type="text" id="comment-input-${p.id}" placeholder="Add a comment…" /><button onclick="addComment(${p.id})">Post</button></div></div></div>`;
     }).join('')}</div>`;
     // Re-init carousels for profile linear view
     setTimeout(() => {
@@ -7181,6 +7189,49 @@ function renderProfileGallery() {
       });
     }, 80);
   }
+}
+
+function togglePostMenu(id, event) {
+  event.stopPropagation();
+  const menu = document.getElementById('pmenu-' + id);
+  if (!menu) return;
+  const isOpen = menu.classList.contains('open');
+  document.querySelectorAll('.post-menu-dropdown.open').forEach(m => m.classList.remove('open'));
+  if (!isOpen) menu.classList.add('open');
+}
+
+document.addEventListener('click', () => {
+  document.querySelectorAll('.post-menu-dropdown.open').forEach(m => m.classList.remove('open'));
+});
+
+async function deletePost(id) {
+  if (!confirm('Are you sure you want to delete this post?')) return;
+
+  const idx = posts.findIndex(p => String(p.id) === String(id));
+  if (idx === -1) return;
+  const post = posts[idx];
+
+  if (supabaseClient && currentUser.id) {
+    const imgUrl = (post.images && post.images[0]) || null;
+    if (imgUrl) {
+      const marker = '/storage/v1/object/public/posts/';
+      const pathStart = imgUrl.indexOf(marker);
+      if (pathStart !== -1) {
+        const storagePath = imgUrl.substring(pathStart + marker.length);
+        await supabaseClient.storage.from('posts').remove([storagePath]);
+      }
+    }
+    const { error } = await supabaseClient.from('posts').delete()
+      .eq('id', id).eq('user_id', currentUser.id);
+    if (error) {
+      console.warn('[Totem] post delete failed:', error.message);
+      showToast('Could not delete post');
+      return;
+    }
+  }
+
+  posts.splice(idx, 1);
+  renderProfileGallery();
 }
 
 function selectGridPhoto(index) {
