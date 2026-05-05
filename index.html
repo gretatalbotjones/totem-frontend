@@ -5186,10 +5186,26 @@ function submitPost() {
   });
 
   if (supabaseClient && currentUser.id) {
-    supabaseClient
-      .from('posts')
-      .insert({ user_id: currentUser.id, caption, created_at: new Date().toISOString() })
-      .then(({ error }) => { if (error) console.warn('[Totem] post insert failed:', error.message); });
+    const uploadFile = selectedImages[0]?.file || null;
+    const uid = currentUser.id;
+    (async () => {
+      let imageUrl = null;
+      if (uploadFile) {
+        const ext = uploadFile.name.split('.').pop() || 'jpg';
+        const path = `${uid}/${Date.now()}.${ext}`;
+        const { error: upErr } = await supabaseClient.storage.from('posts').upload(path, uploadFile);
+        if (upErr) {
+          console.warn('[Totem] image upload failed:', upErr.message);
+        } else {
+          const { data: { publicUrl } } = supabaseClient.storage.from('posts').getPublicUrl(path);
+          imageUrl = publicUrl;
+        }
+      }
+      const { error } = await supabaseClient.from('posts').insert({
+        user_id: uid, caption, image_url: imageUrl, created_at: new Date().toISOString()
+      });
+      if (error) console.warn('[Totem] post insert failed:', error.message);
+    })();
   }
 
   // Reset
@@ -7192,18 +7208,23 @@ async function saveProfile() {
   }
   document.getElementById('profileBio').textContent = bio;
 
-  // Avatar: read file as data URL if one was chosen
+  // Avatar: upload to Supabase Storage avatars bucket
   let avatarUrl = null;
   const avatarInput = document.getElementById('editAvatarInput');
-  if (avatarInput.files && avatarInput.files[0]) {
-    avatarUrl = await new Promise(resolve => {
-      const reader = new FileReader();
-      reader.onload = e => resolve(e.target.result);
-      reader.readAsDataURL(avatarInput.files[0]);
-    });
-    currentUser.avatar = avatarUrl;
-    const picEl = document.getElementById('profilePic');
-    if (picEl) picEl.innerHTML = `<img src="${avatarUrl}" alt="${currentUser.name}" />`;
+  if (avatarInput.files && avatarInput.files[0] && supabaseClient && currentUser.id) {
+    const file = avatarInput.files[0];
+    const ext  = file.name.split('.').pop() || 'jpg';
+    const path = `${currentUser.id}/${Date.now()}.${ext}`;
+    const { error: upErr } = await supabaseClient.storage.from('avatars').upload(path, file);
+    if (upErr) {
+      console.warn('[Totem] avatar upload failed:', upErr.message);
+    } else {
+      const { data: { publicUrl } } = supabaseClient.storage.from('avatars').getPublicUrl(path);
+      avatarUrl = publicUrl;
+      currentUser.avatar = avatarUrl;
+      const picEl = document.getElementById('profilePic');
+      if (picEl) picEl.innerHTML = `<img src="${avatarUrl}" alt="${currentUser.name}" />`;
+    }
   }
 
   // Persist to Supabase
