@@ -8081,11 +8081,15 @@ async function runSearch(query) {
     console.log('[Search] querying profiles for:', query);
     let supabaseResults = [];
     try {
-      const { data, error } = await supabaseClient
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Supabase query timed out after 8s')), 8000)
+      );
+      const queryPromise = supabaseClient
         .from('profiles')
         .select('id, name, avatar_url')
         .ilike('name', `%${query}%`)
         .limit(10);
+      const { data, error } = await Promise.race([queryPromise, timeout]);
       console.log('[Search] raw result:', JSON.stringify(data), 'error:', JSON.stringify(error));
       if (error) throw error;
       supabaseResults = data || [];
