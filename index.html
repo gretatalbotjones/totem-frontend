@@ -8062,11 +8062,7 @@ function openSearchedProfile(name, avatarUrl) {
   openFriendProfile(name);
 }
 
-console.log('[Fix 4] runSearch wired to Supabase profiles for feed tab');
-let _searchDebounceTimer = null;
 async function runSearch(query) {
-  console.log('[Search] supabaseClient:', typeof supabaseClient);
-  console.log('[Search] function entered');
   const q = query.trim().toLowerCase();
   const resultsEl = document.getElementById('searchResults');
 
@@ -8079,57 +8075,54 @@ async function runSearch(query) {
   let items = [];
 
   if (activeSearchTab === 'feed') {
-    // Show loading state immediately
     resultsEl.innerHTML = `<div class="search-empty">Searching…</div>`;
     resultsEl.classList.add('open');
 
-    // Debounce the Supabase query
-    clearTimeout(_searchDebounceTimer);
-    _searchDebounceTimer = setTimeout(async () => {
-      let supabaseResults = [];
-      console.log('[Search] querying profiles for:', query.trim());
-      try {
-        const { data, error } = await supabaseClient
-          .from('profiles')
-          .select('id, name, avatar_url')
-          .ilike('name', `%${query}%`)
-          .limit(10);
-        console.log('[Search] raw result:', JSON.stringify(data), 'error:', JSON.stringify(error));
-        if (!error && data) supabaseResults = data;
-      } catch(e) {
-        console.log('[Search] exception:', e.message);
-      }
+    console.log('[Search] querying profiles for:', query);
+    let supabaseResults = [];
+    try {
+      const { data, error } = await supabaseClient
+        .from('profiles')
+        .select('id, name, avatar_url')
+        .ilike('name', `%${query}%`)
+        .limit(10);
+      console.log('[Search] raw result:', JSON.stringify(data), 'error:', JSON.stringify(error));
+      if (error) throw error;
+      supabaseResults = data || [];
+    } catch(e) {
+      console.log('[Search] exception:', e.message);
+    }
 
-      // Also search local contacts so demo contacts still appear
-      const localPeople = contacts
-        .filter(c => c.name.toLowerCase().includes(q) && !supabaseResults.find(r => r.name === c.name))
-        .map(c => ({ id: null, name: c.name, avatar_url: c.avatar || null, _isContact: true }));
+    // Also search local contacts so demo contacts still appear
+    const localPeople = contacts
+      .filter(c => c.name.toLowerCase().includes(q) && !supabaseResults.find(r => r.name === c.name))
+      .map(c => ({ id: null, name: c.name, avatar_url: c.avatar || null, _isContact: true }));
 
-      const combined = [...supabaseResults, ...localPeople];
-      if (combined.length === 0) {
-        resultsEl.innerHTML = `<div class="search-empty">No users found for "${query.trim()}"</div>`;
-        return;
-      }
-
-      const html = combined.map(p => {
-        const avatarHtml = p.avatar_url
-          ? `<div class="search-result-avatar"><img src="${p.avatar_url}" /></div>`
-          : `<div class="search-result-avatar">${(p.name||'?')[0]}</div>`;
-        const isContact = p._isContact || contactProfiles[p.name];
-        const onclick = isContact
-          ? `openFriendProfile('${p.name.replace(/'/g,"\\'")}');closeSearch();`
-          : `openSearchedProfile('${p.name.replace(/'/g,"\\'")}','${(p.avatar_url||'').replace(/'/g,"\\'")}');closeSearch();`;
-        return `<div class="search-result-item" style="cursor:pointer;" onclick="${onclick}">
-          ${avatarHtml}
-          <div>
-            <div class="search-result-name">${highlight(p.name, q)}</div>
-          </div>
-        </div>`;
-      }).join('');
-      resultsEl.innerHTML = html;
+    const combined = [...supabaseResults, ...localPeople];
+    if (combined.length === 0) {
+      resultsEl.innerHTML = `<div class="search-empty">No users found for "${query.trim()}"</div>`;
       resultsEl.classList.add('open');
-    }, 250);
-    return; // items rendered asynchronously above
+      return;
+    }
+
+    const html = combined.map(p => {
+      const avatarHtml = p.avatar_url
+        ? `<div class="search-result-avatar"><img src="${p.avatar_url}" /></div>`
+        : `<div class="search-result-avatar">${(p.name||'?')[0]}</div>`;
+      const isContact = p._isContact || contactProfiles[p.name];
+      const onclick = isContact
+        ? `openFriendProfile('${p.name.replace(/'/g,"\\'")}');closeSearch();`
+        : `openSearchedProfile('${p.name.replace(/'/g,"\\'")}','${(p.avatar_url||'').replace(/'/g,"\\'")}');closeSearch();`;
+      return `<div class="search-result-item" style="cursor:pointer;" onclick="${onclick}">
+        ${avatarHtml}
+        <div>
+          <div class="search-result-name">${highlight(p.name, q)}</div>
+        </div>
+      </div>`;
+    }).join('');
+    resultsEl.innerHTML = html;
+    resultsEl.classList.add('open');
+    return;
 
   } else if (activeSearchTab === 'events') {
     // Search events by title, location, host, description
