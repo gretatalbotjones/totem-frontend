@@ -133,6 +133,7 @@
     position: absolute;
     top: 100%;
     left: 0; right: 0;
+    z-index: 200;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     max-height: 320px;
@@ -2529,10 +2530,9 @@
   </button>
   <input class="search-bar-input" id="searchInput" type="text" placeholder="Search…" oninput="runSearch(this.value)" autocomplete="off" />
   <button class="search-cancel" onclick="closeSearch()">Cancel</button>
+  <!-- Search results panel: inside searchBarWrap so position:absolute top:100% works correctly -->
+  <div class="search-results" id="searchResults"></div>
 </div>
-
-<!-- Search results panel -->
-<div class="search-results" id="searchResults"></div>
 
 <main>
 
@@ -5393,6 +5393,16 @@ async function fetchLiveNews() {
   const feed = document.getElementById('feed');
   const emptyMsg = document.getElementById('emptyMsg');
 
+  // Non-demo users haven't followed any news sources — show empty state
+  if (!isDemoAccount) {
+    document.querySelectorAll('.post-card').forEach(c => c.style.display = 'none');
+    if (emptyMsg) {
+      emptyMsg.textContent = 'Follow news sources to see articles here';
+      emptyMsg.style.display = 'block';
+    }
+    return;
+  }
+
   // Show existing hardcoded news while loading
   const allCards = document.querySelectorAll('.post-card');
   allCards.forEach(card => {
@@ -8076,13 +8086,15 @@ async function runSearch(query) {
     _searchDebounceTimer = setTimeout(async () => {
       let supabaseResults = [];
       try {
+        console.log('[Search] querying profiles for:', query.trim());
         const { data, error } = await supabaseClient
           .from('profiles')
           .select('id, name, avatar_url')
           .ilike('name', `%${query.trim()}%`)
           .limit(10);
+        console.log('[Search] raw result:', { data, error });
         if (!error && data) supabaseResults = data;
-      } catch(e) { console.warn('[Fix 4] profiles search error:', e); }
+      } catch(e) { console.warn('[Search] profiles search error:', e); }
 
       // Also search local contacts so demo contacts still appear
       const localPeople = contacts
