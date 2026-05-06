@@ -3336,23 +3336,7 @@
         <img id="editAvatarImg" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--border);" />
       </div>
     </div>
-    <button class="btn btn-ghost" style="width:100%;margin-bottom:8px;" onclick="closeModal('editProfileModal');setTimeout(openAvatarUploadModal,200);">Change profile picture →</button>
     <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
-  </div>
-</div>
-
-<!-- ══ AVATAR UPLOAD MODAL (Fix 5) ══ -->
-<div class="modal-overlay" id="avatarUploadModal">
-  <div class="modal-sheet" style="text-align:center;">
-    <div class="modal-handle"></div>
-    <div class="modal-header" style="justify-content:center;position:relative;">
-      <span class="modal-title">Add a profile picture</span>
-      <button class="modal-close" style="position:absolute;right:0;" onclick="closeModal('avatarUploadModal')">✕</button>
-    </div>
-    <div id="avatarUploadPreview" style="width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,#3d4494,#191D64);display:flex;align-items:center;justify-content:center;font-size:2.2rem;font-weight:700;color:white;margin:0 auto 16px;overflow:hidden;"></div>
-    <input type="file" id="avatarUploadInput" accept="image/*" style="display:none;" onchange="handleAvatarUploadSelect(this)" />
-    <button class="btn btn-primary" style="width:100%;margin-bottom:10px;" onclick="document.getElementById('avatarUploadInput').click()">Choose photo</button>
-    <button class="btn btn-ghost" style="width:100%;" onclick="closeModal('avatarUploadModal')">Skip for now</button>
   </div>
 </div>
 
@@ -5976,31 +5960,17 @@ async function createEvent() {
 
   // Persist to Supabase for non-demo users
   if (supabaseClient && currentUser.id && currentUser.name !== DEMO_ACCOUNT_NAME) {
-    console.log('[Fix 1] createEvent: saving to Supabase events table');
     const { data: evRow, error: evErr } = await supabaseClient
       .from('events')
-      .insert({
-        user_id:         currentUser.id,
-        title,
-        description:     desc        || null,
-        location:        location    || null,
-        starts_at:       startsAt,
-        ends_at:         endsAt,
-        visibility:      eventPrivacy,
-        cover_image_url: null,
-      })
+      .insert({ user_id: currentUser.id, title, description: desc || null, location: location || null, starts_at: startsAt, ends_at: endsAt, visibility: eventPrivacy, created_at: new Date().toISOString() })
       .select().single();
     if (evErr) {
-      console.error('[Fix 1] createEvent Supabase error:', evErr.message, evErr);
-      showToast('Could not save event — ' + evErr.message);
-    } else {
-      console.log('[Fix 1] createEvent saved OK, row id:', evRow?.id);
-      if (evRow && eventPrivacy === 'invite') {
-        const rows = invitees.filter(i => i._profileId).map(i => ({ event_id: evRow.id, invitee_id: i._profileId, rsvp: 'pending' }));
-        if (rows.length > 0) {
-          const { error: invErr } = await supabaseClient.from('event_invites').insert(rows);
-          if (invErr) console.warn('[Fix 1] event_invites insert failed:', invErr.message);
-        }
+      console.warn('[Totem] event create failed:', evErr.message);
+    } else if (evRow && eventPrivacy === 'invite') {
+      const rows = invitees.filter(i => i._profileId).map(i => ({ event_id: evRow.id, invitee_id: i._profileId, rsvp: 'pending' }));
+      if (rows.length > 0) {
+        const { error: invErr } = await supabaseClient.from('event_invites').insert(rows);
+        if (invErr) console.warn('[Totem] event invites failed:', invErr.message);
       }
     }
   }
@@ -8040,9 +8010,7 @@ function closeSearch() {
   document.getElementById('searchResults').innerHTML = '';
 }
 
-console.log('[Fix 4] runSearch wired to Supabase profiles for feed tab');
-let _searchDebounceTimer = null;
-async function runSearch(query) {
+function runSearch(query) {
   const q = query.trim().toLowerCase();
   const resultsEl = document.getElementById('searchResults');
 
@@ -8055,53 +8023,26 @@ async function runSearch(query) {
   let items = [];
 
   if (activeSearchTab === 'feed') {
-    // Show loading state immediately
-    resultsEl.innerHTML = `<div class="search-empty">Searching…</div>`;
-    resultsEl.classList.add('open');
-
-    // Debounce the Supabase query
-    clearTimeout(_searchDebounceTimer);
-    _searchDebounceTimer = setTimeout(async () => {
-      let supabaseResults = [];
-      try {
-        const { data, error } = await supabaseClient
-          .from('profiles')
-          .select('id, name, avatar_url')
-          .ilike('name', `%${query.trim()}%`)
-          .limit(10);
-        if (!error && data) supabaseResults = data;
-      } catch(e) { console.warn('[Fix 4] profiles search error:', e); }
-
-      // Also search local contacts so demo contacts still appear
-      const localPeople = contacts
-        .filter(c => c.name.toLowerCase().includes(q) && !supabaseResults.find(r => r.name === c.name))
-        .map(c => ({ id: null, name: c.name, avatar_url: c.avatar || null, _isContact: true }));
-
-      const combined = [...supabaseResults, ...localPeople];
-      if (combined.length === 0) {
-        resultsEl.innerHTML = `<div class="search-empty">No users found for "${query.trim()}"</div>`;
-        return;
-      }
-
-      const html = combined.map(p => {
-        const avatarHtml = p.avatar_url
-          ? `<div class="search-result-avatar"><img src="${p.avatar_url}" /></div>`
-          : `<div class="search-result-avatar">${(p.name||'?')[0]}</div>`;
-        const isContact = p._isContact || contactProfiles[p.name];
-        const onclick = isContact
-          ? `openFriendProfile('${p.name.replace(/'/g,"\\'")}');closeSearch();`
-          : `closeSearch();showToast('${p.name.replace(/'/g,"\\'")}');`;
-        return `<div class="search-result-item" style="cursor:pointer;" onclick="${onclick}">
-          ${avatarHtml}
-          <div>
-            <div class="search-result-name">${highlight(p.name, q)}</div>
-          </div>
+    // Search profiles: current user + contacts
+    const allPeople = [
+      { name: currentUser.name, avatar: currentUser.avatar, sub: 'You · @greta_tj', type: 'profile' },
+      ...contacts.map(c => ({ name: c.name, avatar: c.avatar, sub: c.group === 'family' ? 'Family' : 'Close Friend', type: 'profile' })),
+      // Public profiles from explore posts
+      { name: 'Atlas Obscura', avatar: null, sub: 'Travel & hidden places', type: 'profile' },
+      { name: 'Dark Sky Project', avatar: null, sub: 'Astrophotography', type: 'profile' },
+      { name: 'Minimal Architecture', avatar: null, sub: 'Architecture & design', type: 'profile' },
+    ];
+    items = allPeople
+      .filter(p => p.name.toLowerCase().includes(q))
+      .map(p => {
+        const avatarContent = p.avatar
+          ? `<div class="search-result-avatar"><img src="${p.avatar}" /></div>`
+          : `<div class="search-result-avatar">${p.name[0]}</div>`;
+        return `<div class="search-result-item">
+          ${avatarContent}
+          <div><div class="search-result-name">${highlight(p.name, q)}</div><div class="search-result-sub">${p.sub}</div></div>
         </div>`;
-      }).join('');
-      resultsEl.innerHTML = html;
-      resultsEl.classList.add('open');
-    }, 250);
-    return; // items rendered asynchronously above
+      });
 
   } else if (activeSearchTab === 'events') {
     // Search events by title, location, host, description
@@ -8186,19 +8127,13 @@ function highlight(text, query) {
   return text.replace(re, '<strong style="color:var(--accent);">$1</strong>');
 }
 
-// Close search on click outside or Escape
+// Close search on click outside
 document.addEventListener('click', e => {
   const bar = document.getElementById('searchBarWrap');
   const results = document.getElementById('searchResults');
   const btn = document.getElementById('searchBtn');
   if (bar && !bar.contains(e.target) && !results.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
     closeSearch();
-  }
-});
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    const bar = document.getElementById('searchBarWrap');
-    if (bar && bar.classList.contains('open')) closeSearch();
   }
 });
 
@@ -8558,27 +8493,9 @@ async function finishRegistration(submitted) {
 }
 
 // ── Forgot password ─────────────────────────
-console.log('[Fix 2] sendResetLink wired to supabaseClient.auth.resetPasswordForEmail');
-async function sendResetLink() {
+function sendResetLink() {
   const email = document.getElementById('forgotEmail').value.trim();
   if (!email || !email.includes('@')) { authToast('Please enter a valid email address'); return; }
-
-  const btn = document.querySelector('#forgotCard .btn-primary');
-  if (btn) { btn.textContent = 'Sending…'; btn.disabled = true; }
-
-  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.href.split('?')[0],
-  });
-
-  if (btn) { btn.textContent = 'Send reset link'; btn.disabled = false; }
-
-  if (error) {
-    console.error('[Fix 2] resetPasswordForEmail error:', error.message);
-    authToast(error.message || 'Failed to send reset link');
-    return;
-  }
-
-  console.log('[Fix 2] reset email sent to:', email);
   document.getElementById('resetEmailLabel').textContent = email;
   authGoto('resetSentCard');
 }
@@ -8681,56 +8598,7 @@ function enterApp(user, newUser, welcomeMsg) {
     const feedSubNav = document.getElementById('feedSubNav');
     if (feedSubNav) { feedSubNav.style.bottom = tabBarBottom; feedSubNav.style.display = ''; }
     if (welcomeMsg) showToast(welcomeMsg);
-
-    // Fix 5: show avatar upload prompt for brand-new accounts
-    if (newUser && !isDemoAccount) {
-      setTimeout(openAvatarUploadModal, 900);
-    }
   }, 380);
-}
-
-// ── Fix 5: Avatar upload modal ───────────────
-console.log('[Fix 5] avatar upload modal wired to Supabase Storage avatars bucket');
-
-function openAvatarUploadModal() {
-  const preview = document.getElementById('avatarUploadPreview');
-  if (!preview) return;
-  if (currentUser.avatar) {
-    preview.innerHTML = `<img src="${currentUser.avatar}" style="width:100%;height:100%;object-fit:cover;" />`;
-  } else {
-    preview.textContent = currentUser.initial || '?';
-  }
-  openModal('avatarUploadModal');
-}
-
-function handleAvatarUploadSelect(input) {
-  const file = input.files && input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const preview = document.getElementById('avatarUploadPreview');
-    if (preview) preview.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;" />`;
-  };
-  reader.readAsDataURL(file);
-  uploadAvatarFile(file);
-}
-
-async function uploadAvatarFile(file) {
-  if (!currentUser.id) { showToast('Please sign in first'); return; }
-  const ext  = file.name.split('.').pop().toLowerCase() || 'jpg';
-  const path = `${currentUser.id}/avatar_${Date.now()}.${ext}`;
-  const { error: upErr } = await supabaseClient.storage.from('avatars').upload(path, file, { upsert: true });
-  if (upErr) { console.error('[Fix 5] avatar upload error:', upErr.message); showToast('Upload failed — ' + upErr.message); return; }
-  const { data: { publicUrl } } = supabaseClient.storage.from('avatars').getPublicUrl(path);
-  currentUser.avatar = publicUrl;
-  const picEl = document.getElementById('profilePic');
-  if (picEl) picEl.innerHTML = `<img src="${publicUrl}" alt="${currentUser.name}" />`;
-  try {
-    await supabaseClient.from('profiles').update({ avatar_url: publicUrl }).eq('id', currentUser.id);
-    console.log('[Fix 5] avatar_url saved to profiles table:', publicUrl);
-  } catch(e) { console.warn('[Fix 5] profile update failed:', e); }
-  closeModal('avatarUploadModal');
-  showToast('Profile picture updated!');
 }
 
 // ── Small toast for auth errors ─────────────
@@ -8748,22 +8616,6 @@ function authToast(msg) {
 
 // App renders after login via enterApp()
 // Nothing rendered at page load — auth screen is shown first
-
-// ── Fix 3: Calendar swipe navigation ────────
-(function initCalendarSwipe() {
-  let _swipeStartX = 0;
-  // Attach to the events-section-calendar container so both month and week views are covered
-  document.addEventListener('DOMContentLoaded', () => {
-    const calArea = document.getElementById('events-section-calendar');
-    if (!calArea) return;
-    calArea.addEventListener('touchstart', e => { _swipeStartX = e.touches[0].clientX; }, { passive: true });
-    calArea.addEventListener('touchend', e => {
-      const dx = e.changedTouches[0].clientX - _swipeStartX;
-      if (Math.abs(dx) > 50) { dx < 0 ? calNext() : calPrev(); }
-    }, { passive: true });
-    console.log('[Fix 3] Calendar swipe navigation wired up');
-  });
-})();
 
 // ══════════════════════════════════════════
 //  FOLLOWING LIST
