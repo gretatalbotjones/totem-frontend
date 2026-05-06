@@ -2715,21 +2715,25 @@
     <div class="create-menu-btn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
     </div>
+    <span class="create-menu-label">Diary</span>
   </div>
   <div class="create-menu-item" onclick="openPostModal()">
     <div class="create-menu-btn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
     </div>
+    <span class="create-menu-label">Post</span>
   </div>
   <div class="create-menu-item" onclick="openCreateEventModal()">
     <div class="create-menu-btn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
     </div>
+    <span class="create-menu-label">Event</span>
   </div>
   <div class="create-menu-item" onclick="openAvailabilityModal()">
     <div class="create-menu-btn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
     </div>
+    <span class="create-menu-label">Availability</span>
   </div>
 </div>
 
@@ -3007,28 +3011,9 @@
       <span class="modal-title">✏️ Edit Profile</span>
       <button class="modal-close" onclick="closeModal('editProfileModal')">✕</button>
     </div>
-    <div style="text-align:center; margin-bottom:16px;">
-      <div id="editProfileAvatarWrap" style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#3d4494,#191D64);display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:700;color:white;margin:0 auto 10px;overflow:hidden;cursor:pointer;" onclick="closeModal('editProfileModal'); setTimeout(openAvatarUploadModal, 200);"></div>
-      <button class="btn btn-ghost" style="font-size:0.8rem;padding:5px 14px;" onclick="closeModal('editProfileModal'); setTimeout(openAvatarUploadModal, 200);">Change photo</button>
-    </div>
     <input type="text" id="editName" placeholder="Display name" />
     <input type="text" id="editBio" placeholder="Bio (location, interests...)" />
     <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
-  </div>
-</div>
-
-<!-- ══ AVATAR UPLOAD MODAL ══ -->
-<div class="modal-overlay" id="avatarUploadModal">
-  <div class="modal-sheet" style="text-align:center;">
-    <div class="modal-handle"></div>
-    <div class="modal-header">
-      <span class="modal-title">Profile picture</span>
-      <button class="modal-close" onclick="skipAvatarUpload()">✕</button>
-    </div>
-    <div id="avatarUploadPreview" style="width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,#3d4494,#191D64);display:flex;align-items:center;justify-content:center;font-size:2.2rem;font-weight:700;color:white;margin:0 auto 18px;overflow:hidden;"></div>
-    <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" onchange="handleAvatarFileSelect(this)"/>
-    <button class="btn btn-primary" style="width:100%;margin-bottom:10px;" onclick="document.getElementById('avatarFileInput').click()">Choose photo</button>
-    <button class="btn btn-ghost" style="width:100%;" onclick="skipAvatarUpload()">Skip for now</button>
   </div>
 </div>
 
@@ -3560,7 +3545,7 @@ const supabaseClient = supabase.createClient(
 );
 
 // Restore session on page load
-supabaseClient.auth.onAuthStateChange(async (event, session) => {
+supabaseClient.auth.onAuthStateChange((event, session) => {
   if (event === 'SIGNED_IN' && session) {
     const u = session.user;
     const name = u.user_metadata?.name;
@@ -3569,17 +3554,11 @@ supabaseClient.auth.onAuthStateChange(async (event, session) => {
       return;
     }
     const displayName = name || DEMO_ACCOUNT_NAME;
-    let avatarUrl = u.user_metadata?.avatar_url || null;
-    try {
-      const { data: profileRow } = await supabaseClient
-        .from('profiles').select('avatar_url').eq('id', u.id).single();
-      if (profileRow?.avatar_url) avatarUrl = profileRow.avatar_url;
-    } catch(e) {}
     enterApp({
       id:      u.id,
       name:    displayName,
       initial: displayName[0].toUpperCase(),
-      avatar:  avatarUrl,
+      avatar:  u.user_metadata?.avatar_url || null,
       email:   u.email
     }, false);
   }
@@ -4792,9 +4771,6 @@ function submitPost() {
 
 let currentFeedMode = 'explore';
 
-// Sources this user follows — demo account pre-follows all outlets; others start empty
-let followedSources = new Set(['The Guardian','BBC News','Wired','Financial Times','Nature','The Economist','Reuters','New Scientist','The Times','Vox','Architectural Digest','The Atlantic']);
-
 // ── EXPLORE ALGORITHM: interaction tracking ──────────────────────────────────
 // Tracks cumulative "time" (proxy via interactions) spent in each feed type.
 // Each like, comment, or carousel swipe increments that feed's weight.
@@ -4833,10 +4809,10 @@ function getExploreBlend() {
 function buildExploreQueue() {
   const blend = getExploreBlend();
 
-  // Candidate pools (separate arrays by type); news filtered to followed sources only
+  // Candidate pools (separate arrays by type)
   const pools = {
     personal: posts.filter(p => p.feedType === 'personal' || p.feedType === 'explore').slice().reverse(),
-    news:     posts.filter(p => p.feedType === 'news' && followedSources.has(p.newsSource)).slice().reverse(),
+    news:     posts.filter(p => p.feedType === 'news').slice().reverse(),
     pulse:    posts.filter(p => p.feedType === 'pulse').slice().reverse(),
   };
 
@@ -4938,26 +4914,12 @@ async function fetchLiveNews() {
   const feed = document.getElementById('feed');
   const emptyMsg = document.getElementById('emptyMsg');
 
-  // Only fetch/show live news for sources the user follows
-  if (followedSources.size === 0) {
-    document.querySelectorAll('.post-card').forEach(c => c.style.display = 'none');
-    emptyMsg.style.display = 'block';
-    emptyMsg.textContent = 'Follow news sources to see articles here ✦';
-    return;
-  }
-
-  // Show existing hardcoded news while loading (filtered by followed sources)
+  // Show existing hardcoded news while loading
   const allCards = document.querySelectorAll('.post-card');
-  let newsVisible = 0;
   allCards.forEach(card => {
-    const postId = parseInt(card.id.replace('post-',''), 10);
-    const post = posts.find(p => p.id === postId);
-    const show = card.getAttribute('data-feed-type') === 'news' && post && followedSources.has(post.newsSource);
-    card.style.display = show ? 'block' : 'none';
-    if (show) newsVisible++;
+    card.style.display = card.getAttribute('data-feed-type') === 'news' ? 'block' : 'none';
   });
-  emptyMsg.style.display = newsVisible === 0 ? 'block' : 'none';
-  if (newsVisible === 0) emptyMsg.textContent = 'Nothing here yet ✦';
+  emptyMsg.style.display = 'none';
 
   // Only fetch once per session
   if (liveNewsFetched) return;
@@ -5168,25 +5130,15 @@ function renderFeed() {
   emptyMsg.style.display = 'none';
   feed.innerHTML = '';
 
-  // Explore: algorithm-ordered queue blending all types (news filtered by followedSources inside buildExploreQueue)
+  // Explore: algorithm-ordered queue blending all types; other modes: normal order
   const renderList = (currentFeedMode === 'explore') ? buildExploreQueue() : posts;
-
-  // If explore produced nothing (e.g. new user with no followed sources), show friendly message
-  if (currentFeedMode === 'explore' && renderList.length === 0) {
-    emptyMsg.style.display = 'block';
-    emptyMsg.textContent = 'Follow people to see their posts here ✦';
-    feed.appendChild(emptyMsg);
-    return;
-  }
 
   renderList.forEach(post => {
     const card = buildPostCard(post);
     if (!card) return;
-    // Always hide news from sources the user hasn't followed
-    if (post.feedType === 'news' && !followedSources.has(post.newsSource)) { card.style.display = 'none'; }
-    else if (currentFeedMode === 'personal' && post.feedType !== 'personal') card.style.display = 'none';
-    else if (currentFeedMode === 'news'     && post.feedType !== 'news')     card.style.display = 'none';
-    else if (currentFeedMode === 'pulse'    && post.feedType !== 'pulse')    card.style.display = 'none';
+    if (currentFeedMode === 'personal' && post.feedType !== 'personal') card.style.display = 'none';
+    if (currentFeedMode === 'news'     && post.feedType !== 'news')     card.style.display = 'none';
+    if (currentFeedMode === 'pulse'    && post.feedType !== 'pulse')    card.style.display = 'none';
     feed.appendChild(card);
   });
 
@@ -6079,71 +6031,6 @@ function saveProfile() {
   closeModal('editProfileModal');
 }
 
-async function loadRealFollowCounts() {
-  if (!currentUser.id) return;
-  try {
-    const [{ count: fc }, { count: ing }] = await Promise.all([
-      supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', currentUser.id),
-      supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', currentUser.id)
-    ]);
-    const fEl = document.querySelector('#stat-followers strong');
-    const iEl = document.querySelector('#stat-following strong');
-    if (fEl) fEl.textContent = fc ?? 0;
-    if (iEl) iEl.textContent = ing ?? 0;
-  } catch(e) {}
-}
-
-async function loadFriendFollowCounts(name) {
-  // Friend contacts are demo data without real Supabase IDs; default to 0
-  document.getElementById('fpFollowers').textContent = 0;
-  document.getElementById('fpFollowing').textContent = 0;
-}
-
-function openAvatarUploadModal() {
-  const preview = document.getElementById('avatarUploadPreview');
-  if (currentUser.avatar) {
-    preview.innerHTML = `<img src="${currentUser.avatar}" style="width:100%;height:100%;object-fit:cover;" />`;
-  } else {
-    preview.textContent = currentUser.initial || '?';
-  }
-  openModal('avatarUploadModal');
-}
-
-function skipAvatarUpload() {
-  closeModal('avatarUploadModal');
-}
-
-function handleAvatarFileSelect(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const preview = document.getElementById('avatarUploadPreview');
-    preview.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;" />`;
-  };
-  reader.readAsDataURL(file);
-  uploadAvatarToSupabase(file);
-}
-
-async function uploadAvatarToSupabase(file) {
-  if (!currentUser.id) { showToast('Please sign in to upload a profile picture'); return; }
-  const ext = file.name.split('.').pop().toLowerCase() || 'jpg';
-  const path = `${currentUser.id}/avatar.${ext}`;
-  const { error } = await supabaseClient.storage.from('avatars').upload(path, file, { upsert: true });
-  if (error) { showToast('Upload failed — please try again'); return; }
-  const { data: urlData } = supabaseClient.storage.from('avatars').getPublicUrl(path);
-  const avatarUrl = urlData.publicUrl;
-  try { await supabaseClient.from('profiles').upsert({ id: currentUser.id, avatar_url: avatarUrl }); } catch(e) {}
-  try { await supabaseClient.auth.updateUser({ data: { avatar_url: avatarUrl } }); } catch(e) {}
-  currentUser.avatar = avatarUrl;
-  const profilePicEl = document.getElementById('profilePic');
-  if (profilePicEl) profilePicEl.innerHTML = `<img src="${avatarUrl}" alt="${currentUser.name}" />`;
-  const epWrap = document.getElementById('editProfileAvatarWrap');
-  if (epWrap) epWrap.innerHTML = `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;" />`;
-  closeModal('avatarUploadModal');
-  showToast('Profile picture updated!');
-}
-
 function setPrivacy(mode) {
   profilePrivacy = mode;
   document.getElementById('check-public').style.display  = mode==='public'  ? 'flex' : 'none';
@@ -6618,10 +6505,8 @@ function openFriendProfile(name) {
   document.getElementById('fpUsername').textContent = name;
   document.getElementById('fpName').textContent = name;
   document.getElementById('fpBio').textContent = profile.bio || '';
-  const _fpIsDemo = currentUser.name === DEMO_ACCOUNT_NAME;
-  document.getElementById('fpFollowers').textContent = _fpIsDemo ? (profile.followers || 0) : 0;
-  document.getElementById('fpFollowing').textContent = _fpIsDemo ? (profile.following || 0) : 0;
-  if (!_fpIsDemo) loadFriendFollowCounts(name);
+  document.getElementById('fpFollowers').textContent = profile.followers || 0;
+  document.getElementById('fpFollowing').textContent = profile.following || 0;
 
   // Avatar
   const wrap = document.getElementById('fpAvatarWrap');
@@ -7246,21 +7131,18 @@ function enterApp(user, newUser, welcomeMsg) {
   const isDemoAccount = user.name === DEMO_ACCOUNT_NAME || user.email === DEMO_ACCOUNT_EMAIL;
   currentUser.name    = isDemoAccount ? DEMO_ACCOUNT_NAME : user.name;
   currentUser.initial = isDemoAccount ? 'G' : (user.initial || user.name[0].toUpperCase());
+  currentUser.avatar  = user.avatar || null;
   currentUser.email   = user.email  || null;
   currentUser.id      = user.id     || null;
-  // Only keep the hardcoded Greta avatar for the demo account; everyone else uses their own (or null)
-  if (!isDemoAccount) currentUser.avatar = user.avatar || null;
 
   // Restore or clear demo data depending on whether this is the demo account
   if (isDemoAccount) {
     currentUser.diary = [..._DEMO_DIARY];
     collectionsData.length = 0;
     _DEMO_COLLECTIONS.forEach(c => collectionsData.push({ ...c }));
-    followedSources = new Set(['The Guardian','BBC News','Wired','Financial Times','Nature','The Economist','Reuters','New Scientist','The Times','Vox','Architectural Digest','The Atlantic']);
   } else {
     currentUser.diary = [];
     collectionsData.length = 0;
-    followedSources = new Set();
   }
 
   // Refresh app UI for this user — runs inside setTimeout so DOM is visible
@@ -7305,23 +7187,6 @@ function enterApp(user, newUser, welcomeMsg) {
     updateNotifBadge();
 
     if (welcomeMsg) showToast(welcomeMsg);
-
-    // Load real follower/following counts for non-demo users
-    const _isDemoAccount = user.name === DEMO_ACCOUNT_NAME || user.email === DEMO_ACCOUNT_EMAIL;
-    if (!_isDemoAccount) loadRealFollowCounts();
-
-    // Populate the Edit Profile avatar preview
-    const epWrap = document.getElementById('editProfileAvatarWrap');
-    if (epWrap) {
-      if (currentUser.avatar) {
-        epWrap.innerHTML = `<img src="${currentUser.avatar}" style="width:100%;height:100%;object-fit:cover;" />`;
-      } else {
-        epWrap.textContent = currentUser.initial;
-      }
-    }
-
-    // For brand-new registrations, prompt for profile picture
-    if (newUser) setTimeout(openAvatarUploadModal, 900);
   }, 380);
 }
 
