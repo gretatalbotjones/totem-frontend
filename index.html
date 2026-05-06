@@ -8086,17 +8086,18 @@ async function runSearch(query) {
     clearTimeout(_searchDebounceTimer);
     _searchDebounceTimer = setTimeout(async () => {
       let supabaseResults = [];
+      console.log('[Search] querying profiles for:', query.trim());
       try {
-        console.log('[Search] querying profiles for:', query.trim());
         const { data, error } = await supabaseClient
           .from('profiles')
           .select('id, name, avatar_url')
-          .ilike('name', `%${query.trim()}%`)
+          .ilike('name', `%${query}%`)
           .limit(10);
-        console.log('[Search] results:', data, error);
-        console.log('[Search] raw result:', JSON.stringify(data), 'error:', error);
+        console.log('[Search] raw result:', JSON.stringify(data), 'error:', JSON.stringify(error));
         if (!error && data) supabaseResults = data;
-      } catch(e) { console.warn('[Search] profiles search error:', e); }
+      } catch(e) {
+        console.log('[Search] exception:', e.message);
+      }
 
       // Also search local contacts so demo contacts still appear
       const localPeople = contacts
