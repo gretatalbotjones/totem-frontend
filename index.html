@@ -5851,8 +5851,10 @@ function renderDiaries() {
 
   // Update "Your diary" avatar with currentUser's profile picture
   const yourDiaryAvatar = document.getElementById('yourDiaryAvatar');
-  if (yourDiaryAvatar && currentUser.avatar) {
-    yourDiaryAvatar.innerHTML = `<img src="${currentUser.avatar}" alt="${currentUser.name}" />`;
+  if (yourDiaryAvatar) {
+    yourDiaryAvatar.innerHTML = currentUser.avatar
+      ? `<img src="${currentUser.avatar}" alt="${currentUser.name}" />`
+      : `<span class="diary-initial">${currentUser.initial}</span>`;
   }
 
   // Show contacts with diaries first, then remaining contacts
@@ -8040,6 +8042,16 @@ function closeSearch() {
   document.getElementById('searchResults').innerHTML = '';
 }
 
+function openSearchedProfile(name, avatarUrl) {
+  if (!contactProfiles[name]) {
+    contactProfiles[name] = { bio: '', followers: 0, following: 0 };
+  }
+  if (!contacts.find(c => c.name === name)) {
+    contacts.push({ name, avatar: avatarUrl || null, initial: name[0].toUpperCase() });
+  }
+  openFriendProfile(name);
+}
+
 console.log('[Fix 4] runSearch wired to Supabase profiles for feed tab');
 let _searchDebounceTimer = null;
 async function runSearch(query) {
@@ -8090,7 +8102,7 @@ async function runSearch(query) {
         const isContact = p._isContact || contactProfiles[p.name];
         const onclick = isContact
           ? `openFriendProfile('${p.name.replace(/'/g,"\\'")}');closeSearch();`
-          : `closeSearch();showToast('${p.name.replace(/'/g,"\\'")}');`;
+          : `openSearchedProfile('${p.name.replace(/'/g,"\\'")}','${(p.avatar_url||'').replace(/'/g,"\\'")}');closeSearch();`;
         return `<div class="search-result-item" style="cursor:pointer;" onclick="${onclick}">
           ${avatarHtml}
           <div>
@@ -9113,14 +9125,30 @@ async function loadProfileDiaries() {
 
 async function loadFeedFromSupabase() {
   if (!supabaseClient || !currentUser.id) return;
+
+  const { data: followData } = await supabaseClient
+    .from('follows')
+    .select('following_id')
+    .eq('follower_id', currentUser.id);
+
+  const followedIds = (followData || []).map(f => f.following_id);
+  posts.length = 0;
+
+  if (followedIds.length === 0) {
+    const emptyMsg = document.getElementById('emptyMsg');
+    if (emptyMsg) emptyMsg.textContent = 'Follow people to see their posts here ✦';
+    renderFeed();
+    return;
+  }
+
   const { data, error } = await supabaseClient
     .from('posts')
     .select('id, caption, image_url, feed_type, visibility, created_at, profiles!posts_user_id_fkey(name, avatar_url)')
+    .in('user_id', followedIds)
     .neq('feed_type', 'diary')
     .order('created_at', { ascending: false })
     .limit(50);
   if (error) { console.warn('[Totem] feed load failed:', error.message); return; }
-  posts.length = 0;
   (data || []).forEach(p => {
     const prof = p.profiles || {};
     const authorName = prof.name || 'Someone';
