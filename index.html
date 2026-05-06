@@ -8093,6 +8093,7 @@ async function runSearch(query) {
           .ilike('name', `%${query.trim()}%`)
           .limit(10);
         console.log('[Search] results:', data, error);
+        console.log('[Search] raw result:', JSON.stringify(data), 'error:', error);
         if (!error && data) supabaseResults = data;
       } catch(e) { console.warn('[Search] profiles search error:', e); }
 
