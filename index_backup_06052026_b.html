@@ -2991,21 +2991,25 @@
     <div class="create-menu-btn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
     </div>
+    <span class="create-menu-label">Diary</span>
   </div>
   <div class="create-menu-item" onclick="openPostModal()">
     <div class="create-menu-btn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
     </div>
+    <span class="create-menu-label">Post</span>
   </div>
   <div class="create-menu-item" onclick="openCreateEventModal()">
     <div class="create-menu-btn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
     </div>
+    <span class="create-menu-label">Event</span>
   </div>
   <div class="create-menu-item" onclick="openAvailabilityModal()">
     <div class="create-menu-btn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
     </div>
+    <span class="create-menu-label">Availability</span>
   </div>
 </div>
 
@@ -7161,7 +7165,7 @@ function renderProfileGallery() {
       const imgs = p.images || (p.image ? [p.image] : []);
       const img = imgs[0] || '';
       const badge = imgs.length > 1 ? `<div class="carousel-badge">⧉ ${imgs.length}</div>` : '';
-      return `<div class="photo-grid-wrap"><div class="photo-grid-item" onclick="selectGridPhoto(${i})">${badge}<img src="${img}" alt="${p.caption}" /><div class="grid-overlay"><span>♥ ${p.likes}</span><span>💬 ${(p.comments||[]).length}</span></div></div></div>`;
+      return `<div class="photo-grid-wrap"><div class="photo-grid-item" onclick="selectGridPhoto(${i})">${badge}<img src="${img}" alt="${p.caption}" /><div class="grid-overlay"><span>♥ ${p.likes}</span><span>💬 ${(p.comments||[]).length}</span></div></div><div class="post-menu-wrap"><button class="post-menu-btn" onclick="togglePostMenu('${p.id}',event)">⋯</button><div class="post-menu-dropdown" id="pmenu-${p.id}"><button onclick="deletePost('${p.id}')">Delete post</button></div></div></div>`;
     }).join('')}</div>`;
   } else {
     gallery.innerHTML = `<div class="photo-linear">${myPosts.map(p => {
