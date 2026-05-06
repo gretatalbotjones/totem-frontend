@@ -3607,7 +3607,7 @@
       </div>
     </div>
 
-    <button class="btn btn-primary" onclick="createEvent()">Create & Send Invites</button>
+    <button class="btn btn-primary" onclick="submitNewEvent()">Create & Send Invites</button>
   </div>
 </div>
 
@@ -5942,7 +5942,7 @@ function buildInviteCheckboxes() {
 
 const EVENT_EMOJIS = ['🎉','🎨','🍽️','🎵','🏕️','🌿','🎭','🏖️','🎤','🥂'];
 
-async function createEvent() {
+async function submitNewEvent() {
   const title    = document.getElementById('eventTitle').value.trim();
   const desc     = document.getElementById('eventDesc').value.trim();
   const date     = document.getElementById('eventDate').value;
@@ -8263,8 +8263,12 @@ function checkPwStrength(pw) {
 }
 
 // ── Quick login (Greta shortcut) ────────────
-function quickLogin() {
-  enterApp(DEMO_USER, false);
+async function quickLogin() {
+  const { error } = await supabaseClient.auth.signInWithPassword({
+    email:    DEMO_USER.email,
+    password: DEMO_USER.password,
+  });
+  if (error) { authToast(error.message); enterApp(DEMO_USER, false); }
 }
 
 // ── Email login ─────────────────────────────
