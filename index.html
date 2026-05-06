@@ -8065,6 +8065,7 @@ function openSearchedProfile(name, avatarUrl) {
 console.log('[Fix 4] runSearch wired to Supabase profiles for feed tab');
 let _searchDebounceTimer = null;
 async function runSearch(query) {
+  console.log('[Search] supabaseClient:', typeof supabaseClient);
   console.log('[Search] function entered');
   const q = query.trim().toLowerCase();
   const resultsEl = document.getElementById('searchResults');
