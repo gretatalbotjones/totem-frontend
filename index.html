@@ -1544,7 +1544,7 @@
   }
   .fp-username { font-size: 1rem; font-weight: 700; color: var(--text); }
   .fp-header { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); }
-  .fp-avatar-row { display: flex; align-items: flex-start; gap: 18px; margin-bottom: 12px; }
+  .fp-avatar-row { display: flex; align-items: flex-start; gap: 18px; }
   .fp-avatar {
     width: 76px; height: 76px; border-radius: 50%; object-fit: cover;
     flex-shrink: 0; border: 2px solid var(--border);
@@ -1560,7 +1560,7 @@
   .fp-stat span { font-size: 0.72rem; color: var(--muted); }
   .fp-name { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 2px; }
   .fp-bio { font-size: 0.85rem; color: var(--muted); margin-bottom: 10px; line-height: 1.5; }
-  .fp-actions { display: flex; gap: 8px; margin-bottom: 4px; }
+  .fp-actions { display: flex; gap: 8px; margin-top: 10px; margin-bottom: 0; }
   .fp-btn {
     flex: 1; padding: 8px; border-radius: 10px; font-size: 0.85rem; font-weight: 600;
     cursor: pointer; border: 1.5px solid var(--border); background: var(--surface2); color: var(--text);
@@ -2970,17 +2970,19 @@
   <div class="fp-header">
     <div class="fp-avatar-row">
       <div id="fpAvatarWrap"></div>
-      <div class="fp-stats">
-        <div class="fp-stat"><strong id="fpPostCount">0</strong><span>posts</span></div>
-        <div class="fp-stat"><strong id="fpFollowers">0</strong><span>followers</span></div>
-        <div class="fp-stat"><strong id="fpFollowing">0</strong><span>following</span></div>
+      <div style="flex:1; min-width:0;">
+        <div class="fp-name" id="fpName"></div>
+        <div class="fp-bio" id="fpBio"></div>
+        <div class="fp-stats">
+          <div class="fp-stat"><strong id="fpPostCount">0</strong><span>posts</span></div>
+          <div class="fp-stat"><strong id="fpFollowers">0</strong><span>followers</span></div>
+          <div class="fp-stat"><strong id="fpFollowing">0</strong><span>following</span></div>
+        </div>
+        <div class="fp-actions">
+          <button class="fp-btn" id="fpFollowBtn" onclick="toggleFriendFollow()">Follow</button>
+          <button class="fp-btn" onclick="openChatFromProfile()">Message</button>
+        </div>
       </div>
-    </div>
-    <div class="fp-name" id="fpName"></div>
-    <div class="fp-bio" id="fpBio"></div>
-    <div class="fp-actions">
-      <button class="fp-btn primary" id="fpFollowBtn" onclick="toggleFriendFollow()">Following</button>
-      <button class="fp-btn" onclick="openChatFromProfile()">Message</button>
     </div>
   </div>
   <div class="fp-gallery" id="fpGallery"></div>
@@ -3079,34 +3081,40 @@
 
 <!-- Friend profile sub-nav (shown/hidden with #friendProfileModal) -->
 <div class="profile-content-tabs" id="fpSubNav" style="display:none;position:fixed;bottom:78px;left:0;right:0;max-width:600px;margin:0 auto;z-index:360;background:rgba(255,255,255,0.97);backdrop-filter:blur(16px);border-top:1px solid var(--border);box-shadow:0 -2px 10px rgba(26,23,20,0.06);">
-  <div class="profile-content-tab active" id="fpTab-posts" title="Posts">
+  <div class="profile-content-tab active" id="fpTab-posts" title="Posts" onclick="setFpTab('posts',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+  </div>
+  <div class="profile-content-tab" id="fpTab-pulse" title="Pulse" onclick="setFpTab('pulse',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="2 12 6 5 10 15 14 9 18 12 22 12"/></svg>
+  </div>
+  <div class="profile-content-tab" id="fpTab-tagged" title="Tagged" onclick="setFpTab('tagged',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
   </div>
 </div>
 
 <!-- ══ BOTTOM TAB BAR (no labels) ══ -->
 <div class="tab-bar">
   <!-- Feed — stacked lines -->
-  <button class="tab-btn active" id="tabBtn-feed" onclick="switchTab('feed', this)">
+  <button class="tab-btn active" id="tabBtn-feed" onclick="closeFriendProfile(); switchTab('feed', this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
   </button>
   <!-- Events — calendar -->
-  <button class="tab-btn" id="tabBtn-events" onclick="switchTab('events', this)">
+  <button class="tab-btn" id="tabBtn-events" onclick="closeFriendProfile(); switchTab('events', this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
     <span class="dot" id="eventsDot" style="display:none;"></span>
   </button>
   <!-- Post + button -->
-  <button class="tab-btn-post" id="createBtn" onclick="toggleCreateMenu()">
+  <button class="tab-btn-post" id="createBtn" onclick="closeFriendProfile(); toggleCreateMenu()">
     <div class="plus-circle">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </div>
   </button>
   <!-- Messages — chat bubble -->
-  <button class="tab-btn" id="tabBtn-messages" onclick="switchTab('messages', this)">
+  <button class="tab-btn" id="tabBtn-messages" onclick="closeFriendProfile(); switchTab('messages', this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
   </button>
   <!-- Profile — person silhouette -->
-  <button class="tab-btn" id="tabBtn-profile" onclick="switchTab('profile', this)">
+  <button class="tab-btn" id="tabBtn-profile" onclick="closeFriendProfile(); switchTab('profile', this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
   </button>
 </div>
@@ -7856,7 +7864,9 @@ async function openFriendProfile(name) {
   btn.textContent = 'Follow';
   btn.classList.remove('primary');
 
-  // Render gallery
+  // Reset sub-nav to Posts tab and render gallery
+  document.querySelectorAll('#fpSubNav .profile-content-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('fpTab-posts')?.classList.add('active');
   renderFriendGallery(name);
 
   document.getElementById('friendProfileModal').classList.add('open');
@@ -7939,22 +7949,34 @@ function openChatFromProfile() {
   if (fpCurrentName) openChat(fpCurrentName);
 }
 
-function renderFriendGallery(name) {
+function renderFriendGallery(name, tab) {
+  tab = tab || 'posts';
   const gallery = document.getElementById('fpGallery');
-  const myPosts = contactPosts.filter(p => p.user === name);
-  document.getElementById('fpPostCount').textContent = myPosts.length;
-
+  let myPosts;
+  if (tab === 'pulse') {
+    myPosts = contactPosts.filter(p => p.user === name && p.feedType === 'pulse');
+  } else if (tab === 'tagged') {
+    myPosts = contactPosts.filter(p => (p.taggedPeople || []).includes(name));
+  } else {
+    myPosts = contactPosts.filter(p => p.user === name);
+  }
+  document.getElementById('fpPostCount').textContent = contactPosts.filter(p => p.user === name).length;
   if (myPosts.length === 0) {
-    gallery.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);">No posts yet ✦</div>`;
+    gallery.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);">No ${tab} posts yet ✦</div>`;
     return;
   }
-
   gallery.innerHTML = `<div class="photo-grid">${myPosts.map(p => {
     const imgs = p.images || [];
     const img = imgs[0] || '';
     const badge = imgs.length > 1 ? `<div class="carousel-badge">⧉ ${imgs.length}</div>` : '';
     return `<div class="photo-grid-item" style="cursor:pointer;" onclick="openFriendPost(${p.id})">${badge}<img src="${img}" alt="${p.caption||''}" loading="lazy" /></div>`;
   }).join('')}</div>`;
+}
+
+function setFpTab(tab, el) {
+  document.querySelectorAll('#fpSubNav .profile-content-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderFriendGallery(fpCurrentName, tab);
 }
 
 function openFriendPost(id) {
