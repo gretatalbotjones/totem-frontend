@@ -1568,6 +1568,7 @@
   }
   .fp-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
   .fp-btn.primary:hover { filter: brightness(1.1); }
+  .fp-btn.requested { opacity: 0.65; cursor: default; }
   .fp-btn:hover { background: var(--accent-light); }
   .fp-gallery { padding: 2px; }
 
@@ -2825,6 +2826,10 @@
 
   <!-- ══ NOTIFICATIONS ══ -->
   <div class="tab-page" id="tab-notifs">
+    <div class="card" id="followRequestsCard" style="margin-bottom:18px;display:none;">
+      <div style="padding:14px 16px; border-bottom:1px solid var(--border); font-family:'Abadi MT Condensed Extra Bold','Abadi Extra Light','Abadi','Century Gothic','Gill Sans','Gill Sans MT',Calibri,sans-serif; font-size:1.1rem; font-weight:700; color:var(--accent);">Follow Requests</div>
+      <div id="followRequestsList"></div>
+    </div>
     <div class="card" style="margin-bottom:18px;">
       <div style="padding:14px 16px; border-bottom:1px solid var(--border); font-family:'Abadi MT Condensed Extra Bold','Abadi Extra Light','Abadi','Century Gothic','Gill Sans','Gill Sans MT',Calibri,sans-serif; font-size:1.1rem; font-weight:700; color:var(--accent);">Alerts</div>
       <div id="notifList"></div>
@@ -6903,6 +6908,105 @@ function renderNotifs() {
     </div>`).join('');
 }
 
+async function loadNotificationsFromSupabase() {
+  if (!supabaseClient || !currentUser.id || currentUser.name === DEMO_ACCOUNT_NAME) return;
+
+  // Load pending follow requests where I'm the target
+  const { data: requests } = await supabaseClient
+    .from('follow_requests')
+    .select('id, requester_id, created_at, profiles!follow_requests_requester_id_fkey(name, avatar_url)')
+    .eq('target_id', currentUser.id)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+
+  // Load notifications from notifications table
+  const { data: notifRows } = await supabaseClient
+    .from('notifications')
+    .select('id, type, actor_id, text, read, created_at, profiles!notifications_actor_id_fkey(name, avatar_url)')
+    .eq('user_id', currentUser.id)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  // Render follow requests section
+  const requestsCard = document.getElementById('followRequestsCard');
+  const requestsList = document.getElementById('followRequestsList');
+  if (requestsCard && requestsList) {
+    if (requests && requests.length > 0) {
+      requestsCard.style.display = '';
+      requestsList.innerHTML = requests.map(r => {
+        const prof = r.profiles || {};
+        const rName = prof.name || 'Someone';
+        const initial = rName[0].toUpperCase();
+        const avatarHtml = prof.avatar_url
+          ? `<img src="${prof.avatar_url}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;" />`
+          : `<div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.85rem;flex-shrink:0;">${initial}</div>`;
+        const dateStr = new Date(r.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        return `
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);">
+            ${avatarHtml}
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:0.88rem;line-height:1.3;"><strong>${rName}</strong> wants to follow you.</div>
+              <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">${dateStr}</div>
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0;">
+              <button class="btn btn-primary btn-sm" style="padding:6px 12px;font-size:0.8rem;" onclick="approveFollowRequest('${r.id}','${r.requester_id}','${rName}')">Approve</button>
+              <button class="btn btn-ghost btn-sm" style="padding:6px 12px;font-size:0.8rem;" onclick="declineFollowRequest('${r.id}')">Decline</button>
+            </div>
+          </div>`;
+      }).join('');
+    } else {
+      requestsCard.style.display = 'none';
+    }
+  }
+
+  // Populate notifications array from DB rows (replaces demo data for real users)
+  notifications.length = 0;
+  const typeIcons = { follow_request: '👤', follow_approved: '✓', like: '♥', comment: '💬', event_invite: '📅' };
+  (notifRows || []).forEach(n => {
+    notifications.push({
+      id:     n.id,
+      icon:   typeIcons[n.type] || '🔔',
+      text:   n.text || '',
+      time:   new Date(n.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+      unread: !n.read,
+    });
+  });
+
+  renderNotifs();
+  updateNotifBadge();
+}
+
+async function approveFollowRequest(requestId, requesterId, requesterName) {
+  if (!supabaseClient || !currentUser.id) return;
+  // Insert into follows
+  const { error: followErr } = await supabaseClient.from('follows').upsert(
+    { follower_id: requesterId, following_id: currentUser.id },
+    { onConflict: 'follower_id,following_id', ignoreDuplicates: true }
+  );
+  if (followErr) { console.warn('[Hatch] approve follow failed:', followErr.message); showToast('Something went wrong — try again'); return; }
+  // Update request status
+  await supabaseClient.from('follow_requests').update({ status: 'approved' }).eq('id', requestId);
+  // Notify the requester
+  await supabaseClient.from('notifications').insert({
+    user_id:  requesterId,
+    type:     'follow_approved',
+    actor_id: currentUser.id,
+    text:     `<strong>${currentUser.name}</strong> approved your follow request.`,
+  });
+  // Update own follower count optimistically
+  const followerEl = document.getElementById('followerCount');
+  if (followerEl) followerEl.textContent = (parseInt(followerEl.textContent) || 0) + 1;
+  await loadNotificationsFromSupabase();
+  showToast(`${requesterName} is now following you ✦`);
+}
+
+async function declineFollowRequest(requestId) {
+  if (!supabaseClient || !currentUser.id) return;
+  await supabaseClient.from('follow_requests').update({ status: 'declined' }).eq('id', requestId);
+  await loadNotificationsFromSupabase();
+  showToast('Follow request declined');
+}
+
 // ══════════════════════════════════════════
 //  MESSAGES
 // ══════════════════════════════════════════
@@ -7934,6 +8038,8 @@ let lightboxIndex = 0;
 let fpCurrentName = null;
 let fpFollowing = false;
 let fpCurrentProfileId = null;
+let fpCurrentProfilePrivacy = 'public';
+let fpRequestPending = false;
 
 async function openFriendProfile(name) {
   const profile = contactProfiles[name];
@@ -7958,9 +8064,12 @@ async function openFriendProfile(name) {
 
   // Default to Follow while DB check runs
   fpFollowing = false;
+  fpRequestPending = false;
+  fpCurrentProfilePrivacy = 'public';
   const btn = document.getElementById('fpFollowBtn');
   btn.textContent = 'Follow';
   btn.classList.remove('primary');
+  btn.classList.remove('requested');
 
   // Reset sub-nav to Posts tab and render gallery
   document.querySelectorAll('#fpSubNav .profile-content-tab').forEach(t => t.classList.remove('active'));
@@ -7975,20 +8084,34 @@ async function openFriendProfile(name) {
   if (supabaseClient && currentUser.id) {
     const { data: profileRow } = await supabaseClient
       .from('profiles')
-      .select('id')
+      .select('id, privacy')
       .eq('name', name)
       .maybeSingle();
     if (profileRow) {
       fpCurrentProfileId = profileRow.id;
-      const [followRes, fwrRes, fwingRes, postRes] = await Promise.all([
+      fpCurrentProfilePrivacy = profileRow.privacy || 'public';
+      const [followRes, reqRes, fwrRes, fwingRes, postRes] = await Promise.all([
         supabaseClient.from('follows').select('follower_id').eq('follower_id', currentUser.id).eq('following_id', fpCurrentProfileId).maybeSingle(),
+        supabaseClient.from('follow_requests').select('id, status').eq('requester_id', currentUser.id).eq('target_id', fpCurrentProfileId).maybeSingle(),
         supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', fpCurrentProfileId),
         supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', fpCurrentProfileId),
         supabaseClient.from('posts').select('*', { count: 'exact', head: true }).eq('user_id', fpCurrentProfileId).neq('feed_type', 'diary'),
       ]);
       fpFollowing = !!followRes.data;
-      btn.textContent = fpFollowing ? 'Following' : 'Follow';
-      btn.classList.toggle('primary', fpFollowing);
+      fpRequestPending = reqRes.data?.status === 'pending';
+      if (fpFollowing) {
+        btn.textContent = 'Following';
+        btn.classList.add('primary');
+        btn.classList.remove('requested');
+      } else if (fpRequestPending) {
+        btn.textContent = 'Requested';
+        btn.classList.remove('primary');
+        btn.classList.add('requested');
+      } else {
+        btn.textContent = 'Follow';
+        btn.classList.remove('primary');
+        btn.classList.remove('requested');
+      }
       if (fwrRes.count   !== null) document.getElementById('fpFollowers').textContent = fwrRes.count;
       if (fwingRes.count !== null) document.getElementById('fpFollowing').textContent = fwingRes.count;
       if (postRes.count  !== null) document.getElementById('fpPostCount').textContent = postRes.count;
@@ -8004,58 +8127,92 @@ function closeFriendProfile() {
 }
 
 async function toggleFriendFollow() {
-  if (!currentUser.id) {
-    showToast('Sign in to follow people ✦');
+  if (!currentUser.id) { showToast('Sign in to follow people ✦'); return; }
+  if (!supabaseClient || !fpCurrentProfileId) return;
+  if (currentUser.name === DEMO_ACCOUNT_NAME) return;
+
+  const btn = document.getElementById('fpFollowBtn');
+  const followingEl   = document.getElementById('followingCount');
+  const fpFollowersEl = document.getElementById('fpFollowers');
+
+  // ── Case 1: already following → unfollow ───────────────────
+  if (fpFollowing) {
+    fpFollowing = false;
+    btn.textContent = 'Follow';
+    btn.classList.remove('primary');
+    btn.classList.remove('requested');
+    if (followingEl)   followingEl.textContent   = Math.max(0, (parseInt(followingEl.textContent)   || 0) - 1);
+    if (fpFollowersEl) fpFollowersEl.textContent = Math.max(0, (parseInt(fpFollowersEl.textContent) || 0) - 1);
+    const { error } = await supabaseClient.from('follows').delete()
+      .eq('follower_id', currentUser.id).eq('following_id', fpCurrentProfileId);
+    if (error) {
+      console.warn('[Hatch] unfollow failed:', error.message);
+      fpFollowing = true;
+      btn.textContent = 'Following'; btn.classList.add('primary');
+      if (followingEl)   followingEl.textContent = (parseInt(followingEl.textContent)   || 0) + 1;
+      if (fpFollowersEl) fpFollowersEl.textContent = (parseInt(fpFollowersEl.textContent) || 0) + 1;
+    }
     return;
   }
 
-  // Optimistic toggle
-  fpFollowing = !fpFollowing;
-  const btn = document.getElementById('fpFollowBtn');
-  btn.textContent = fpFollowing ? 'Following' : 'Follow';
-  btn.classList.toggle('primary', fpFollowing);
-
-  // Optimistically update own following count and friend's follower count
-  const delta = fpFollowing ? 1 : -1;
-  const followingEl   = document.getElementById('followingCount');
-  const fpFollowersEl = document.getElementById('fpFollowers');
-  if (followingEl)   followingEl.textContent   = Math.max(0, (parseInt(followingEl.textContent)   || 0) + delta);
-  if (fpFollowersEl) fpFollowersEl.textContent = Math.max(0, (parseInt(fpFollowersEl.textContent) || 0) + delta);
-
-  if (!supabaseClient || !fpCurrentProfileId) return;
-
-  if (fpFollowing) {
-    const { error } = await supabaseClient
-      .from('follows')
-      .upsert(
-        { follower_id: currentUser.id, following_id: fpCurrentProfileId },
-        { onConflict: 'follower_id,following_id', ignoreDuplicates: true }
-      );
+  // ── Case 2: pending request exists → withdraw ───────────────
+  if (fpRequestPending) {
+    fpRequestPending = false;
+    btn.textContent = 'Follow';
+    btn.classList.remove('requested');
+    const { error } = await supabaseClient.from('follow_requests').delete()
+      .eq('requester_id', currentUser.id).eq('target_id', fpCurrentProfileId);
     if (error) {
-      console.warn('[Totem] follow failed:', error.message);
+      console.warn('[Hatch] withdraw request failed:', error.message);
+      fpRequestPending = true;
+      btn.textContent = 'Requested'; btn.classList.add('requested');
+      return;
+    }
+    showToast('Follow request withdrawn');
+    return;
+  }
+
+  // ── Case 3: public account → instant follow ─────────────────
+  if (fpCurrentProfilePrivacy !== 'private') {
+    fpFollowing = true;
+    btn.textContent = 'Following'; btn.classList.add('primary');
+    if (followingEl)   followingEl.textContent = (parseInt(followingEl.textContent)   || 0) + 1;
+    if (fpFollowersEl) fpFollowersEl.textContent = (parseInt(fpFollowersEl.textContent) || 0) + 1;
+    const { error } = await supabaseClient.from('follows').upsert(
+      { follower_id: currentUser.id, following_id: fpCurrentProfileId },
+      { onConflict: 'follower_id,following_id', ignoreDuplicates: true }
+    );
+    if (error) {
+      console.warn('[Hatch] follow failed:', error.message);
       fpFollowing = false;
-      btn.textContent = 'Follow';
-      btn.classList.remove('primary');
-      // Roll back optimistic count changes
-      if (followingEl)   followingEl.textContent   = Math.max(0, (parseInt(followingEl.textContent)   || 0) - 1);
+      btn.textContent = 'Follow'; btn.classList.remove('primary');
+      if (followingEl)   followingEl.textContent = Math.max(0, (parseInt(followingEl.textContent)   || 0) - 1);
       if (fpFollowersEl) fpFollowersEl.textContent = Math.max(0, (parseInt(fpFollowersEl.textContent) || 0) - 1);
     }
-  } else {
-    const { error } = await supabaseClient
-      .from('follows')
-      .delete()
-      .eq('follower_id', currentUser.id)
-      .eq('following_id', fpCurrentProfileId);
-    if (error) {
-      console.warn('[Totem] unfollow failed:', error.message);
-      fpFollowing = true;
-      btn.textContent = 'Following';
-      btn.classList.add('primary');
-      // Roll back optimistic count changes
-      if (followingEl)   followingEl.textContent   = (parseInt(followingEl.textContent)   || 0) + 1;
-      if (fpFollowersEl) fpFollowersEl.textContent = (parseInt(fpFollowersEl.textContent) || 0) + 1;
-    }
+    return;
   }
+
+  // ── Case 4: private account → send follow request ───────────
+  fpRequestPending = true;
+  btn.textContent = 'Requested'; btn.classList.add('requested');
+  const { error: reqErr } = await supabaseClient.from('follow_requests').upsert(
+    { requester_id: currentUser.id, target_id: fpCurrentProfileId, status: 'pending' },
+    { onConflict: 'requester_id,target_id' }
+  );
+  if (reqErr) {
+    console.warn('[Hatch] follow request failed:', reqErr.message);
+    fpRequestPending = false;
+    btn.textContent = 'Follow'; btn.classList.remove('requested');
+    return;
+  }
+  // Notify the target
+  await supabaseClient.from('notifications').insert({
+    user_id:  fpCurrentProfileId,
+    type:     'follow_request',
+    actor_id: currentUser.id,
+    text:     `<strong>${currentUser.name}</strong> wants to follow you.`,
+  });
+  showToast('Follow request sent ✦');
 }
 
 function openChatFromProfile() {
@@ -8871,6 +9028,7 @@ function enterApp(user, newUser, welcomeMsg) {
       loadEventsFromSupabase();
       loadProfileSettings();
       loadCollectionsFromSupabase();
+      loadNotificationsFromSupabase();
     }
 
     const tabBar = document.querySelector('.tab-bar');

@@ -83,16 +83,8 @@ After completing each task, run a backup (see CLAUDE.md backup protocol).
 
 ---
 
-### P2-4 — Follow request flow not implemented
-**What:** Tapping Follow immediately creates a follow. Should send a request the other user approves or declines.
-**Fix:**
-1. Migration: create `follow_requests` table (`id, requester_id, target_id, status, created_at`)
-2. Update `toggleFriendFollow()` to insert into `follow_requests` with status `pending` instead of writing to `follows`
-3. Show "Requested" state on Follow button
-4. Add incoming requests to notifications tab with Approve/Decline buttons
-5. On approve: insert into `follows`, update request status to `approved`
-6. On decline: update request status to `declined`
-**Effort:** Large
+### ~~P2-4~~ — Follow request flow not implemented ✅
+**Fixed:** Extended `toggleFriendFollow()` with 4 cases: (1) unfollow if already following, (2) withdraw pending request, (3) instant follow for public accounts, (4) insert into `follow_requests` + notify target for private accounts. `openFriendProfile()` now fetches `privacy` from profiles and checks `follow_requests` for pending status alongside the existing follow/count queries — sets button to Following / Requested / Follow accordingly. Added `#followRequestsCard` section to `#tab-notifs` with Approve/Decline buttons. `loadNotificationsFromSupabase()` loads pending requests and DB notification rows on login; `approveFollowRequest()` inserts into follows, updates request status, notifies requester; `declineFollowRequest()` updates status to declined. Migrations `008_follow_requests.sql` and `009_notifications.sql` created. ⚠️ Run both migrations in Supabase SQL editor.
 
 ---
 
@@ -126,10 +118,8 @@ After completing each task, run a backup (see CLAUDE.md backup protocol).
 
 ---
 
-### FOLLOW-02 — Follow requests only required for private accounts
-**What:** Currently follow is instant for all accounts. Follow requests should only be required when the target account is set to private. Public accounts can be followed instantly as before.
-**Fix:** In `toggleFriendFollow()`, check `profiles.privacy` for the target user. If private, insert into `follow_requests` with status `pending` and show "Requested" state. If public, follow instantly as current behaviour. Depends on P2-4 (`follow_requests` table) being built first.
-**Effort:** Medium
+### ~~FOLLOW-02~~ — Follow requests only required for private accounts ✅
+**Fixed:** Implemented as part of P2-4. `toggleFriendFollow()` checks `fpCurrentProfilePrivacy` (stored when `openFriendProfile()` loads the profile row). Public accounts follow instantly; private accounts go through the request flow.
 
 ---
 

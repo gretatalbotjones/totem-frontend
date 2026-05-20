@@ -62,6 +62,8 @@ Target demographic: 25–40, UK-first, privacy-forward.
 - `005_collections.sql` — creates collections and collection_items tables with RLS ⚠️ run in Supabase SQL editor
 - `006_invite_codes.sql` — creates invite_codes table with RLS + seeds 10 test codes ⚠️ run in Supabase SQL editor
 - `007_diary_private_rls.sql` — RLS policy restricting diary post reads to owner only ⚠️ run in Supabase SQL editor
+- `008_follow_requests.sql` — follow_requests table with RLS (requester + target policies) ⚠️ run in Supabase SQL editor
+- `009_notifications.sql` — notifications table with RLS ⚠️ run in Supabase SQL editor
 
 ---
 
