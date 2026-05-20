@@ -6963,6 +6963,7 @@ async function loadNotificationsFromSupabase() {
   notifications.length = 0;
   const typeIcons = { follow_request: '👤', follow_approved: '✓', like: '♥', comment: '💬', event_invite: '📅' };
   (notifRows || []).forEach(n => {
+    if (n.type === 'follow_request') return; // already shown in Follow Requests section
     notifications.push({
       id:     n.id,
       icon:   typeIcons[n.type] || '🔔',

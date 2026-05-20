@@ -88,6 +88,16 @@ After completing each task, run a backup (see CLAUDE.md backup protocol).
 
 ---
 
+### ~~BUG-01~~ — Approve/Decline buttons not responding ✅
+**Fixed:** `approveFollowRequest()` was inserting `{ follower_id: requesterId, following_id: currentUser.id }` but the `follows` RLS policy only permitted `follower_id = auth.uid()`. Since the approver is `following_id`, the insert was blocked. Migration `010_follows_approve_policy.sql` drops and recreates the policy with `auth.uid() = follower_id OR auth.uid() = following_id`. ⚠️ Run migration in Supabase SQL editor.
+
+---
+
+### ~~BUG-02~~ — Follow request appearing twice in notifications ✅
+**Fixed:** `loadNotificationsFromSupabase()` was pushing all `notifRows` into the alerts array including `type === 'follow_request'` rows, which were already displayed in the Follow Requests card. Added `if (n.type === 'follow_request') return;` guard at the top of the `notifRows.forEach` loop.
+
+---
+
 ### P2-5 — Trusted Circles not persisted or created at onboarding
 **What:** `groupDefs` is a hardcoded JS object. No onboarding step creates circles. Audience picker selection is also discarded on post insert (see P1-1).
 **Fix:**
