@@ -66,6 +66,51 @@ After completing each task, run a backup (see CLAUDE.md backup protocol).
 
 ---
 
+### ~~UI-06~~ — Tapping a user's name does not open their profile ✅
+**Fixed:** Added `userId: p.user_id` to post objects in both `loadFeedFromSupabase()` and `subscribeFeedRealtime()`. In `buildPostCard()`, moved `isOwnPost`/`nameTappable`/`fpClick` computation before the pulse branch so both feed types share it — author name in the caption block and avatar are tappable when `post.userId` is set and it isn't the current user's own post; pulse-author div gets the same `fpClick`. Demo contacts fall back to `contactProfiles` check unchanged. Added `onclick="closeModal(...);openFriendProfile(...)"` to `.following-item` rows in `renderFollowersItems()` and `renderFollowingItems()` (demo mode) — real-user path already tappable via `renderFollowListFromSupabase()`.
+
+---
+
+### UI-07 — Diary entries appearing in collections instead of feed strip
+**What:** When a diary entry is submitted it is appearing in the collections strip on the profile page instead of the diary/stories strip at the top of the feed. A diary entry should:
+- Appear in the circular stories strip at the top of the feed
+- Disappear after 24 hours
+- Only appear in a collection if the user explicitly saves it to one
+
+**Fix:**
+1. Audit how `submitDiaryEntry()` writes to Supabase — check `feed_type`, `visibility` and any `collection_id` field
+2. Audit `loadCollectionsFromSupabase()` — check if it is accidentally picking up diary entries
+3. Ensure collections query filters OUT `feed_type = 'diary'` entries so they never appear in collections
+4. Ensure the diary strip query filters for `feed_type = 'diary'` only and entries from last 24 hours
+5. Confirm the two data paths are completely separate and do not overlap
+**Effort:** Medium
+
+---
+
+### UI-08 — Collections layout broken on profile page
+**What:** The "New Collection" button appears in a row below existing collections instead of inline with them. Collections and the New button should all appear in a single horizontal scrollable row.
+**Fix:** Audit the collections strip HTML and `renderCollections()` function. Ensure the New button and collection items are all siblings in the same flex row container. Check whether `loadCollectionsFromSupabase()` is appending correctly or creating a new row element.
+**Effort:** Small
+
+---
+
+### UI-09 — Follower/post counts reset when switching tabs
+**What:** Follower count and post count on the own profile header change to incorrect values when navigating away from the profile tab and returning to it.
+**Fix:** Audit what happens when the profile tab is re-selected. Check whether `switchTab()` or any tab change handler is resetting profile stats to defaults (0 or hardcoded values) before `loadProfileSettings()` has a chance to reload them. Fix so counts are either cached correctly or reloaded cleanly without flickering to wrong values.
+**Effort:** Small
+
+---
+
+### UI-10 — News and Pulse feeds show personal feed content
+**What:** Clicking News or Pulse in the feed sub-nav (Explore / Personal / News / Pulse) shows the personal feed instead of the correct content.
+**Fix:**
+1. News sub-nav: show empty state message "No news sources followed yet" if user follows no verified news outlets. Do not show personal posts.
+2. Pulse sub-nav: show posts where `feed_type = 'pulse'` from followed users only. If none exist yet show "No pulse posts yet".
+3. Ensure `setFeedMode()` correctly filters by `feed_type` when switching modes.
+**Effort:** Small
+
+---
+
 ## P2 — Important (needed for Phase 1, not immediately blocking)
 
 ### ~~P2-1~~ — Feed requires page refresh for new posts ✅
@@ -145,6 +190,57 @@ After completing each task, run a backup (see CLAUDE.md backup protocol).
 4. Mark notifications as read on open (`read = true` update)
 **Effort:** Medium
 **Depends on:** P2-4 (follow requests) for the most important notification type
+
+---
+
+### FEATURE-01 — Pulse post creation
+**What:** The create menu currently has diary, post, event and coordinate. Replace coordinate with Pulse post. A Pulse post is text-only, 150 character limit, appears in the Pulse feed of followers (`feed_type = 'pulse'`).
+**Fix:**
+1. Replace the coordinate option in the create menu with Pulse post
+2. Create a Pulse post modal with: text input with 150 character counter, no image upload, audience picker (Everyone / Circles), Post button
+3. On submit: insert into posts table with `feed_type = 'pulse'`, visibility from audience picker
+4. Pulse posts appear in the Pulse sub-nav feed of followers, not in Personal feed
+5. Comments are critical for Pulse posts — ensure SOCIAL-01 comment fix covers Pulse posts as well as photo posts
+**Effort:** Medium
+
+---
+
+### PERF-01 — General loading performance is slow
+**What:** The app takes a long time to load content across multiple screens.
+**Fix:**
+1. Check whether Supabase queries are running sequentially when they could run in parallel (`Promise.all`)
+2. Check whether `loadFeedFromSupabase()` is fetching more data than needed — add a LIMIT if not already present
+3. Add skeleton loading states so the UI feels responsive while data loads rather than showing blank screens
+4. Check whether the Supabase project is on a free tier plan that may be causing cold start delays
+**Effort:** Medium
+
+---
+
+### UI-11 — Profile picture not consistent across the app
+**What:** Profile picture should appear in three places and stay in sync when updated: (1) own profile page header, (2) next to the user's name below their posts in the feed, (3) in the diary circle at the top left of the feed strip. When a user updates their avatar, all three should reflect the change immediately.
+**Fix:**
+1. Audit where `currentUser.avatar` is read to render the profile picture in each of the three locations
+2. Ensure all three reference the same source — `currentUser.avatar` updated from Supabase on login and on avatar change
+3. After a successful avatar upload, update `currentUser.avatar` in memory and re-render all three locations
+**Effort:** Small
+
+---
+
+### UI-12 — Event invite search not working for private events
+**What:** When creating an event with invite-only visibility, a search bar appears to find friends to invite but the search returns no results.
+**Fix:**
+1. Find the event invite search function
+2. Check whether it queries the `profiles` table or `follows` table — it should search followed users first
+3. Fix the query so it returns matching profiles from the `follows` table (people the user actually knows)
+4. Selecting a user from results should add them to the invite list and insert into `event_invites` on event save
+**Effort:** Medium
+
+---
+
+### UI-13 — Event time picker minute dial should snap to 5-minute intervals
+**What:** The event creation time picker uses a clock dial UI which is correct and should be kept. However the minute dial currently allows selection of any minute value. It should only snap to 5-minute intervals: 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55.
+**Fix:** Find the clock dial minute handler in the event creation modal. When the user releases the dial, round the selected minute to the nearest 5-minute interval using: `Math.round(minutes / 5) * 5`. Apply the same snap behaviour to the end time picker. The hour dial is unaffected — any hour remains selectable.
+**Effort:** Small
 
 ---
 

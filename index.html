@@ -5560,6 +5560,11 @@ function buildPostCard(post) {
   card.id = 'post-' + post.id;
   card.setAttribute('data-feed-type', post.feedType || 'personal');
 
+  const isOwnPost = post.userId ? post.userId === currentUser.id : post.user === currentUser.name;
+  const nameTappable = !isOwnPost && (post.userId || contactProfiles[post.user]);
+  const safePostUser = post.user.replace(/'/g, "\\'");
+  const fpClick = nameTappable ? `style="cursor:pointer;" onclick="openFriendProfile('${safePostUser}')"` : '';
+
   if (post.feedType === 'pulse') {
     const pulseAvatarSrc = post.avatar || (post.user === currentUser.name ? currentUser.avatar : null);
     const avatarHtml = pulseAvatarSrc
@@ -5574,7 +5579,7 @@ function buildPostCard(post) {
         <div class="pulse-header">
           ${avatarHtml}
           <div class="pulse-meta">
-            <div class="pulse-author">${post.user}</div>
+            <div class="pulse-author" ${fpClick}>${post.user}</div>
             <div class="pulse-handle">@${post.user.toLowerCase().replace(/\s+/g,'_')}</div>
           </div>
           <div class="pulse-time">${post.time||'now'}</div>
@@ -5621,7 +5626,6 @@ function buildPostCard(post) {
   const tagsHtml = (post.taggedPeople && post.taggedPeople.length)
     ? `<div class="post-tags">${post.taggedPeople.map(n=>`<span class="post-tag-person">@${n}</span>`).join('')}</div>` : '';
   const avatarSrc = post.avatar || (post.user === currentUser.name ? currentUser.avatar : null);
-  const fpClick = contactProfiles[post.user] ? `style="cursor:pointer;" onclick="openFriendProfile('${post.user.replace(/'/g,"\\'")}') "` : '';
   const avatarHtml = avatarSrc
     ? `<div class="post-avatar" ${fpClick}><img src="${avatarSrc}" alt="${post.user}" /></div>`
     : `<div class="post-avatar" ${fpClick}>${post.initial}</div>`;
@@ -5633,7 +5637,7 @@ function buildPostCard(post) {
       ${avatarHtml}
       <div class="post-footer-meta">
         <div class="caption-outer">
-          <div class="caption-block clamped" id="cap-${post.id}"><strong style="${contactProfiles[post.user]?'cursor:pointer;color:var(--accent);':''}" onclick="${contactProfiles[post.user]?`openFriendProfile('${post.user.replace(/'/g,"\\'")}')`:''}">${post.user}</strong> ${post.caption || post.headline || ""}</div>
+          <div class="caption-block clamped" id="cap-${post.id}"><strong ${nameTappable ? `style="cursor:pointer;color:var(--accent);" onclick="openFriendProfile('${safePostUser}')"` : ''}>${post.user}</strong> ${post.caption || post.headline || ""}</div>
           <span class="caption-more" id="cap-more-${post.id}" onclick="expandCaption(${post.id}, 'feed')">... more</span>
         </div>
       </div>
@@ -9305,8 +9309,9 @@ function renderFollowersItems(filter) {
       .filter(g => g.members.includes(c.name))
       .map(g => `<span style="font-size:0.72rem; color:var(--muted);">${g.emoji} ${g.name}</span>`)
       .join('');
+    const safeName = c.name.replace(/'/g, "\\'");
     return `
-      <div class="following-item">
+      <div class="following-item" style="cursor:pointer;" onclick="closeModal('followersModal');openFriendProfile('${safeName}')">
         ${avatarHtml}
         <div class="following-info">
           <div class="following-name">${c.name}</div>
@@ -9362,7 +9367,7 @@ function renderFollowingItems(filter) {
       ? `<img class="following-avatar" src="${c.avatar}" alt="${c.name}" />`
       : `<div class="following-avatar-placeholder">${c.initial}</div>`;
     return `
-      <div class="following-item">
+      <div class="following-item" style="cursor:pointer;" onclick="closeModal('followingModal');openFriendProfile('${safeName}')">
         ${avatarHtml}
         <div class="following-info">
           <div class="following-name">${c.name}</div>
@@ -9674,7 +9679,7 @@ async function loadFeedFromSupabase() {
     const prof = p.profiles || {};
     const authorName = prof.name || 'Someone';
     posts.push({
-      id: p.id, user: authorName, initial: authorName[0].toUpperCase(), avatar: prof.avatar_url || null,
+      id: p.id, userId: p.user_id, user: authorName, initial: authorName[0].toUpperCase(), avatar: prof.avatar_url || null,
       images: parseImageUrls(p.image_url), caption: p.caption || '',
       likes: 0, liked: false, comments: [],
       time: new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
@@ -9710,7 +9715,7 @@ function subscribeFeedRealtime(followedIds) {
           .from('profiles').select('name, avatar_url').eq('id', p.user_id).single();
         const authorName = prof?.name || 'Someone';
         posts.unshift({
-          id: p.id,
+          id: p.id, userId: p.user_id,
           user: authorName, initial: authorName[0].toUpperCase(), avatar: prof?.avatar_url || null,
           images: parseImageUrls(p.image_url), caption: p.caption || '',
           likes: 0, liked: false, comments: [],
