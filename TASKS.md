@@ -121,10 +121,13 @@ After completing each task, run a backup (see CLAUDE.md backup protocol).
 
 ---
 
-### UI-03 — Diary entries not showing in feed strip
-**What:** After a diary entry is submitted the confirmation toast appears but the entry does not show in the diary strip at the top of the feed. The strip should show the account holder's diary on the left followed by entries from followed users, matching the Instagram stories pattern.
-**Fix:** Audit the diary strip render function — check whether it loads from Supabase on login and whether new entries are appended in real time or require a refresh. Fix the load and display path so entries appear immediately after posting.
-**Effort:** Medium
+### ~~UI-05~~ — Followers/following counts not tappable on profile ✅
+**Fixed:** Extended `openFollowersModal(profileId)` and `openFollowingModal(profileId)` to accept an optional profileId. For real (non-demo) users both functions query Supabase (`follows` table with profiles FK join) and render tappable items via new `renderFollowListFromSupabase()` helper — each item calls `closeModal(); openFriendProfile()`. "Edit Groups" button hidden when viewing a friend's profile. Added `onclick="openFollowersModal(fpCurrentProfileId)"` / `onclick="openFollowingModal(fpCurrentProfileId)"` to friend profile stat divs. `filterFollowers` and `filterFollowing` guard against overwriting Supabase-loaded content (only run in demo mode when `contacts` is populated).
+
+---
+
+### ~~UI-03~~ — Diary entries not showing in feed strip ✅
+**Fixed:** Added `loadFeedDiaries()` which queries own diary posts + followed users' diary posts from the last 24 hours, updates `currentUser.diary`, toggles the own ring's `unseen` class, and renders one circle per followed user (most recent entry, deduped). Called from `enterApp()` for non-demo users and from `submitDiaryEntry()` after a successful DB insert so new entries appear immediately without a refresh.
 
 ---
 

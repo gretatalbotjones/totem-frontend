@@ -2976,8 +2976,8 @@
         <div class="fp-bio" id="fpBio"></div>
         <div class="fp-stats">
           <div class="fp-stat"><strong id="fpPostCount">0</strong><span>posts</span></div>
-          <div class="fp-stat"><strong id="fpFollowers">0</strong><span>followers</span></div>
-          <div class="fp-stat"><strong id="fpFollowing">0</strong><span>following</span></div>
+          <div class="fp-stat" style="cursor:pointer;" onclick="openFollowersModal(fpCurrentProfileId)"><strong id="fpFollowers">0</strong><span>followers</span></div>
+          <div class="fp-stat" style="cursor:pointer;" onclick="openFollowingModal(fpCurrentProfileId)"><strong id="fpFollowing">0</strong><span>following</span></div>
         </div>
         <div class="fp-actions">
           <button class="fp-btn" id="fpFollowBtn" onclick="toggleFriendFollow()">Follow</button>
@@ -4969,6 +4969,7 @@ async function submitDiaryEntry() {
       created_at: new Date().toISOString(),
     });
     if (error) console.warn('[Hatch] diary save failed:', error.message);
+    else loadFeedDiaries();
   }
 
   showToast('Added to your diary ✦');
@@ -5941,6 +5942,117 @@ function renderDiaries() {
           ${c.avatar
             ? `<img src="${c.avatar}" alt="${c.name}" />`
             : `<span class="diary-initial">${c.initial}</span>`}
+        </div>
+      </div>
+      <span class="diary-name">${firstName}</span>
+    `;
+    strip.appendChild(item);
+  });
+}
+
+async function loadFeedDiaries() {
+  if (!supabaseClient || !currentUser.id || currentUser.name === DEMO_ACCOUNT_NAME) return;
+
+  const strip = document.getElementById('diariesStrip');
+  if (!strip) return;
+
+  // Update own avatar
+  const yourDiaryAvatar = document.getElementById('yourDiaryAvatar');
+  if (yourDiaryAvatar) {
+    yourDiaryAvatar.innerHTML = currentUser.avatar
+      ? `<img src="${currentUser.avatar}" alt="${currentUser.name}" />`
+      : `<span class="diary-initial">${(currentUser.initial || currentUser.name[0] || 'Y').toUpperCase()}</span>`;
+  }
+
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  // Own diary entries from last 24h
+  const { data: ownData } = await supabaseClient
+    .from('posts')
+    .select('id, caption, image_url, created_at')
+    .eq('user_id', currentUser.id)
+    .eq('feed_type', 'diary')
+    .gte('created_at', since)
+    .order('created_at', { ascending: false });
+
+  currentUser.diary = (ownData || []).map(e => ({
+    img:  e.image_url,
+    text: e.caption || '',
+    time: new Date(e.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+  }));
+
+  // Update own diary ring appearance and onclick
+  const ownItem = strip.querySelector('.diary-item:first-child');
+  if (ownItem) {
+    const ring = ownItem.querySelector('.diary-ring');
+    if (ring) ring.classList.toggle('unseen', currentUser.diary.length > 0);
+    ownItem.onclick = () => {
+      if (currentUser.diary && currentUser.diary.length) {
+        openDiaryViewer(currentUser.name, currentUser.initial, currentUser.diary);
+      } else {
+        showToast('No diary entries in the last 24 hours ✦');
+      }
+    };
+  }
+
+  // Get followed user IDs
+  const { data: followData } = await supabaseClient
+    .from('follows')
+    .select('following_id')
+    .eq('follower_id', currentUser.id);
+  const followedIds = (followData || []).map(r => r.following_id);
+
+  // Remove previously-rendered contact items
+  strip.querySelectorAll('.diary-item.contact').forEach(el => el.remove());
+
+  if (!followedIds.length) return;
+
+  // Followed users' diary entries from last 24h
+  const { data: friendData } = await supabaseClient
+    .from('posts')
+    .select('id, user_id, caption, image_url, created_at')
+    .eq('feed_type', 'diary')
+    .in('user_id', followedIds)
+    .gte('created_at', since)
+    .order('created_at', { ascending: false });
+
+  // Batch-fetch profiles for diary authors
+  const authorIds = [...new Set((friendData || []).map(e => e.user_id))];
+  let profileMap = {};
+  if (authorIds.length) {
+    const { data: profData } = await supabaseClient
+      .from('profiles')
+      .select('id, name, avatar_url')
+      .in('id', authorIds);
+    (profData || []).forEach(p => { profileMap[p.id] = p; });
+  }
+
+  // One circle per user — their most recent entry
+  const seenUsers = new Set();
+  (friendData || []).forEach(entry => {
+    if (seenUsers.has(entry.user_id)) return;
+    seenUsers.add(entry.user_id);
+
+    const prof = profileMap[entry.user_id] || {};
+    const name = prof.name || 'Someone';
+    const firstName = name.split(' ')[0];
+    const initial = name[0].toUpperCase();
+    const diaryEntries = [{
+      img:  entry.image_url,
+      text: entry.caption || '',
+      time: new Date(entry.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+    }];
+
+    const item = document.createElement('div');
+    item.className = 'diary-item contact';
+    item.style.cursor = 'pointer';
+    item.onclick = () => openDiaryViewer(name, initial, diaryEntries);
+    item.innerHTML = `
+      <div class="diary-ring unseen">
+        <div class="diary-ring-inner">
+          ${prof.avatar_url
+            ? `<img src="${prof.avatar_url}" alt="${firstName}" />`
+            : `<span class="diary-initial">${initial}</span>`}
         </div>
       </div>
       <span class="diary-name">${firstName}</span>
@@ -9025,6 +9137,7 @@ function enterApp(user, newUser, welcomeMsg) {
     // For non-demo accounts load real data from Supabase
     if (!isDemoAccount) {
       loadFeedFromSupabase();
+      loadFeedDiaries();
       loadProfileDiaries();
       loadEventsFromSupabase();
       loadProfileSettings();
@@ -9125,11 +9238,54 @@ function authToast(msg) {
 //  FOLLOWING LIST
 // ══════════════════════════════════════════
 
-function openFollowersModal() {
+async function openFollowersModal(profileId) {
+  const targetId = profileId || currentUser.id;
+  const isOwnProfile = !profileId || profileId === currentUser.id;
+
+  const editGroupsBtn = document.querySelector('#followersModal .edit-groups-btn');
+  if (editGroupsBtn) editGroupsBtn.style.display = isOwnProfile ? '' : 'none';
+
+  if (supabaseClient && currentUser.id && currentUser.name !== DEMO_ACCOUNT_NAME) {
+    const { data, error } = await supabaseClient
+      .from('follows')
+      .select('profiles!follows_follower_id_fkey(id, name, avatar_url)')
+      .eq('following_id', targetId);
+    if (error) console.warn('[Hatch] load followers failed:', error.message);
+    const people = (data || []).map(r => r.profiles).filter(Boolean);
+    renderFollowListFromSupabase(people, 'followersItems', 'followersModal');
+    openModal('followersModal');
+    return;
+  }
+
+  // Demo fallback
   const searchInput = document.getElementById('followersSearch');
   if (searchInput) searchInput.value = '';
   renderFollowersItems('');
   openModal('followersModal');
+}
+
+function renderFollowListFromSupabase(people, containerId, modalId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  if (!people.length) {
+    container.innerHTML = `<div style="text-align:center;padding:24px;color:var(--muted);font-size:0.85rem;">Nobody here yet</div>`;
+    return;
+  }
+  container.innerHTML = people.map(p => {
+    const name = p.name || 'User';
+    const safeName = name.replace(/'/g, "\\'");
+    const initial = name[0].toUpperCase();
+    const avatarHtml = p.avatar_url
+      ? `<img class="following-avatar" src="${p.avatar_url}" alt="${name}" />`
+      : `<div class="following-avatar-placeholder">${initial}</div>`;
+    return `
+      <div class="following-item" style="cursor:pointer;" onclick="closeModal('${modalId}');openFriendProfile('${safeName}')">
+        ${avatarHtml}
+        <div class="following-info">
+          <div class="following-name">${name}</div>
+        </div>
+      </div>`;
+  }).join('');
 }
 
 function renderFollowersItems(filter) {
@@ -9161,10 +9317,26 @@ function renderFollowersItems(filter) {
 }
 
 function filterFollowers(val) {
-  renderFollowersItems(val);
+  if (contacts.length) renderFollowersItems(val); // only in demo mode
 }
 
-function openFollowingModal() {
+async function openFollowingModal(profileId) {
+  const targetId = profileId || currentUser.id;
+  const isOwnProfile = !profileId || profileId === currentUser.id;
+
+  if (supabaseClient && currentUser.id && currentUser.name !== DEMO_ACCOUNT_NAME) {
+    const { data, error } = await supabaseClient
+      .from('follows')
+      .select('profiles!follows_following_id_fkey(id, name, avatar_url)')
+      .eq('follower_id', targetId);
+    if (error) console.warn('[Hatch] load following failed:', error.message);
+    const people = (data || []).map(r => r.profiles).filter(Boolean);
+    renderFollowListFromSupabase(people, 'followingItems', 'followingModal');
+    openModal('followingModal');
+    return;
+  }
+
+  // Demo fallback
   const searchInput = document.getElementById('followingSearch');
   if (searchInput) searchInput.value = '';
   renderFollowingItems('');
@@ -9225,7 +9397,7 @@ function getContactGroupLabel(name) {
 }
 
 function filterFollowing(val) {
-  renderFollowingItems(val);
+  if (contacts.length) renderFollowingItems(val); // only in demo mode
 }
 
 // ══════════════════════════════════════════
