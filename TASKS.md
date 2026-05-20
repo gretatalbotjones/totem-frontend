@@ -51,6 +51,21 @@ After completing each task, run a backup (see CLAUDE.md backup protocol).
 
 ---
 
+### ~~UI-01~~ — Post modal confirm button hidden behind bottom nav ✅
+**Fixed:** Added `style="padding-bottom: 80px;"` to `#postModal .modal-sheet`. Tab bar is ~62px tall (z-index 355 over modal z-index 300); 80px bottom padding pushes the Share Post button 18px above the tab bar top.
+
+---
+
+### ~~UI-02~~ — Diary modal confirm button hidden behind bottom nav ✅
+**Fixed:** Same fix — added `style="padding-bottom: 80px;"` to `#diaryModal .modal-sheet`. Done in the same pass as UI-01.
+
+---
+
+### ~~UI-04~~ — Duplicate collections strip on profile page ✅
+**Fixed:** Removed the hardcoded "New" diary-item from `#profileDiariesStrip` (the old placeholder that was showing a second New button). Updated both `enterApp()` show/hide loops from `forEach((el, i) => { if (i > 0) ... })` to `forEach(el => { ... })` — index 0 was the removed New button; now all demo items start at index 0 so the index condition was wrong.
+
+---
+
 ## P2 — Important (needed for Phase 1, not immediately blocking)
 
 ### ~~P2-1~~ — Feed requires page refresh for new posts ✅
@@ -101,6 +116,20 @@ After completing each task, run a backup (see CLAUDE.md backup protocol).
 
 ### ~~P2-7~~ — Diary/Memories not truly private ✅
 **Fixed:** Changed diary insert in `submitDiaryEntry()` from `visibility: 'friends'` to `visibility: 'private'`. Also fixed the test helper insert. Migration `007_diary_private_rls.sql` adds an RLS SELECT policy on `posts` that permits access only when `feed_type != 'diary'` OR `user_id = auth.uid()`. ⚠️ Run migration in Supabase SQL editor.
+
+---
+
+### UI-03 — Diary entries not showing in feed strip
+**What:** After a diary entry is submitted the confirmation toast appears but the entry does not show in the diary strip at the top of the feed. The strip should show the account holder's diary on the left followed by entries from followed users, matching the Instagram stories pattern.
+**Fix:** Audit the diary strip render function — check whether it loads from Supabase on login and whether new entries are appended in real time or require a refresh. Fix the load and display path so entries appear immediately after posting.
+**Effort:** Medium
+
+---
+
+### FOLLOW-02 — Follow requests only required for private accounts
+**What:** Currently follow is instant for all accounts. Follow requests should only be required when the target account is set to private. Public accounts can be followed instantly as before.
+**Fix:** In `toggleFriendFollow()`, check `profiles.privacy` for the target user. If private, insert into `follow_requests` with status `pending` and show "Requested" state. If public, follow instantly as current behaviour. Depends on P2-4 (`follow_requests` table) being built first.
+**Effort:** Medium
 
 ---
 

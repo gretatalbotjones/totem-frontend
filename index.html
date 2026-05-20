@@ -2880,16 +2880,8 @@
       </div>
     </div>
 
-    <!-- Collections Strip -->
+    <!-- Profile diary strip (demo items hidden for real users; real entries appended by loadProfileDiaries) -->
     <div class="diaries-strip" id="profileDiariesStrip" style="padding: 4px 20px 8px 8px; border-bottom: 1px solid var(--border);">
-      <div class="diary-item" style="cursor:pointer;" onclick="showToast('Create a new Collection')">
-        <div class="diary-ring own">
-          <div class="diary-ring-inner">
-            <span style="font-size:1.4rem; color:var(--muted);">+</span>
-          </div>
-        </div>
-        <span class="diary-name own">New</span>
-      </div>
       <div class="diary-item" style="cursor:pointer;" onclick="showToast('🇪🇸 Spain')">
         <div class="diary-ring own">
           <div class="diary-ring-inner" style="overflow:hidden;padding:0;">
@@ -3018,7 +3010,7 @@
 
 <!-- ══ DIARY MODAL ══ -->
 <div class="modal-overlay" id="diaryModal" onclick="closeModalByOverlay(event,'diaryModal')">
-  <div class="modal-sheet">
+  <div class="modal-sheet" style="padding-bottom: 80px;">
     <div class="modal-handle"></div>
     <div class="modal-header">
       <span class="modal-title">📔 Add to Diary</span>
@@ -3243,7 +3235,7 @@
 
 <!-- ══ NEW POST MODAL ══ -->
 <div class="modal-overlay" id="postModal" onclick="closeModalByOverlay(event,'postModal')">
-  <div class="modal-sheet">
+  <div class="modal-sheet" style="padding-bottom: 80px;">
     <div class="modal-handle"></div>
     <div class="modal-header">
       <span class="modal-title">✦ New Post</span>
@@ -8808,7 +8800,7 @@ function enterApp(user, newUser, welcomeMsg) {
     Object.assign(chatHistory, JSON.parse(JSON.stringify(_DEMO_CHAT_HISTORY)));
     collectionsData.length = 0;
     _DEMO_COLLECTIONS.forEach(c => collectionsData.push({ ...c }));
-    document.querySelectorAll('#profileDiariesStrip .diary-item').forEach((el, i) => { if (i > 0) el.style.display = ''; });
+    document.querySelectorAll('#profileDiariesStrip .diary-item').forEach(el => { el.style.display = ''; });
   } else {
     currentUser.diary = [];
     posts.length = 0;
@@ -8818,7 +8810,7 @@ function enterApp(user, newUser, welcomeMsg) {
     contacts.length = 0;
     Object.keys(chatHistory).forEach(k => delete chatHistory[k]);
     collectionsData.length = 0;
-    document.querySelectorAll('#profileDiariesStrip .diary-item').forEach((el, i) => { if (i > 0) el.style.display = 'none'; });
+    document.querySelectorAll('#profileDiariesStrip .diary-item').forEach(el => { el.style.display = 'none'; });
   }
 
   // Refresh app UI for this user — runs inside setTimeout so DOM is visible
