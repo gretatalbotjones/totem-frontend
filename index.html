@@ -2392,6 +2392,7 @@
       <!-- REGISTER PANEL -->
       <div id="registerPanel" style="display:none;">
         <div class="auth-card-sub" style="margin-bottom:16px;">Join HATCH — it takes about 2 minutes. Your identity will be verified to keep the community trustworthy.</div>
+        <input type="text"  id="inviteCode"  placeholder="Invite code" style="text-transform:uppercase;letter-spacing:0.1em;" autocomplete="off" />
         <input type="text"  id="regName"    placeholder="Full name" />
         <input type="email" id="regEmail"   placeholder="Email address" />
         <input type="text"  id="regPhone"   placeholder="Mobile number (optional — for 2FA)" />
@@ -2923,6 +2924,9 @@
       </div>
     </div>
 
+
+    <!-- Collections -->
+    <div class="diaries-strip" id="collectionsStrip" style="padding: 4px 20px 8px 8px; border-bottom: 1px solid var(--border);"></div>
 
     <!-- Gallery -->
     <div style="margin-bottom:20px; margin-left:-12px; margin-right:-12px; margin-top:0;">
@@ -3956,6 +3960,10 @@ if (supabaseClient) supabaseClient.auth.onAuthStateChange((event, session) => {
     }, !!welcomeMsg, welcomeMsg);
   }
   if (event === 'SIGNED_OUT') {
+    if (_feedRealtimeChannel) {
+      supabaseClient.removeChannel(_feedRealtimeChannel);
+      _feedRealtimeChannel = null;
+    }
     document.getElementById('appWrapper').classList.remove('visible');
     document.getElementById('authScreen').style.display = '';
     document.getElementById('authScreen').style.opacity = '1';
@@ -4658,6 +4666,7 @@ let posts = [
 ];
 
 let nextPostId = 50;
+let _feedRealtimeChannel = null;
 
 let events = [
   { id: 1, host: "Melissa Lawford", hostInitial: "M", title: "Gallery Opening Night", emoji: "🎨", desc: "Drinks and canapés from 7pm. Come celebrate!", date: "2026-03-15", time: "19:00", endTime: "21:30", location: "Tate Modern, London", invitees: [{ name: "Greta Talbot-Jones", initial: "G", rsvp: "pending" }, { name: "Jack Farrant", initial: "J", rsvp: "going" }, { name: "Felix Nugee", initial: "F", rsvp: "maybe" }] },
@@ -4910,6 +4919,7 @@ function closeDiaryViewer() {
 
 function openDiaryModal() {
   closeCreateMenu();
+  diaryFile = null;
   document.getElementById('diaryCaption').value = '';
   document.getElementById('diaryFileInput').value = '';
   document.getElementById('diaryPreviewWrap').style.display = 'none';
@@ -4918,6 +4928,7 @@ function openDiaryModal() {
 
 function handleDiaryPhoto(input) {
   if (!input.files || !input.files[0]) return;
+  diaryFile = input.files[0]; // store for upload in submitDiaryEntry
   const reader = new FileReader();
   reader.onload = e => {
     document.getElementById('diaryPreview').src = e.target.result;
@@ -4930,21 +4941,37 @@ function handleDiaryPhoto(input) {
 async function submitDiaryEntry() {
   const caption  = document.getElementById('diaryCaption').value.trim();
   const hasPhoto = document.getElementById('diaryPreviewWrap').style.display !== 'none';
-  const imageUrl = hasPhoto ? document.getElementById('diaryPreview').src : null;
+  // Base64 data URL — used for immediate local display only, never persisted to DB
+  const localPreviewUrl = hasPhoto ? document.getElementById('diaryPreview').src : null;
+  const fileToUpload = diaryFile;
+  diaryFile = null;
 
   closeModal('diaryModal');
-  addDiaryItemToStrip(imageUrl, caption, Date.now());
+  addDiaryItemToStrip(localPreviewUrl, caption, Date.now());
 
-  if (supabaseClient && currentUser.id) {
+  if (supabaseClient && currentUser.id && currentUser.name !== DEMO_ACCOUNT_NAME) {
+    let storageUrl = null;
+    if (fileToUpload) {
+      const ext  = fileToUpload.name.split('.').pop().toLowerCase() || 'jpg';
+      const path = `${currentUser.id}/diary_${Date.now()}.${ext}`;
+      const { error: upErr } = await supabaseClient.storage.from('posts').upload(path, fileToUpload);
+      if (upErr) {
+        console.warn('[Hatch] diary image upload failed:', upErr.message);
+        // Continue without image_url rather than storing base64 in the DB
+      } else {
+        const { data: { publicUrl } } = supabaseClient.storage.from('posts').getPublicUrl(path);
+        storageUrl = publicUrl;
+      }
+    }
     const { error } = await supabaseClient.from('posts').insert({
       user_id:    currentUser.id,
       caption:    caption || null,
-      image_url:  imageUrl || null,
+      image_url:  storageUrl,
       feed_type:  'diary',
-      visibility: 'friends',
+      visibility: 'private',
       created_at: new Date().toISOString(),
     });
-    if (error) console.warn('[Totem] diary save failed:', error.message);
+    if (error) console.warn('[Hatch] diary save failed:', error.message);
   }
 
   showToast('Added to your diary ✦');
@@ -5086,6 +5113,7 @@ function toggleGroup(chip) {
 let selectedImages = []; // array of {url, file, exif}
 let aiDeclared = false;
 let taggedPeople = [];
+let diaryFile = null; // holds the File object for the current diary entry image
 
 async function handleFileSelect(event) {
   const files = [...event.target.files];
@@ -5195,11 +5223,10 @@ function toggleAiDeclare() {
 // ══════════════════════════════════════════
 
 function submitPost() {
-  if (selectedImages.length === 0) { alert('Please upload at least one photo!'); return; }
   const caption = document.getElementById('captionInput').value.trim();
-  if (!caption) { alert('Please write a caption!'); return; }
+  if (!caption && selectedImages.length === 0) { showToast('Add a photo or write something ✦'); return; }
 
-  const firstExif = selectedImages[0]?.exif;
+  const firstExif = selectedImages[0]?.exif || null;
   const authStatus = aiDeclared ? 'ai' : (firstExif && firstExif.Make) ? 'real' : 'unverified';
 
   // Audience description
@@ -5223,25 +5250,35 @@ function submitPost() {
   });
 
   if (supabaseClient && currentUser.id) {
-    const uploadFile = selectedImages[0]?.file || null;
+    // Capture files and settings before the async IIFE — selectedImages/selectedAudience
+    // are reset synchronously below, so we must snapshot them here
+    const filesToUpload = selectedImages.map(i => i.file).filter(Boolean);
     const uid = currentUser.id;
+    const visibility = selectedAudience === 'everyone' ? 'public' : 'friends';
     (async () => {
-      let imageUrl = null;
-      if (uploadFile) {
-        const ext = uploadFile.name.split('.').pop() || 'jpg';
-        const path = `${uid}/${Date.now()}.${ext}`;
-        const { error: upErr } = await supabaseClient.storage.from('posts').upload(path, uploadFile);
-        if (upErr) {
-          console.warn('[Totem] image upload failed:', upErr.message);
-        } else {
+      // Upload all images in parallel; each gets a unique path to avoid collisions
+      const ts = Date.now();
+      const urlResults = await Promise.all(
+        filesToUpload.map(async (file, i) => {
+          const ext = file.name.split('.').pop().toLowerCase() || 'jpg';
+          const path = `${uid}/${ts}-${i}.${ext}`;
+          const { error: upErr } = await supabaseClient.storage.from('posts').upload(path, file);
+          if (upErr) { console.warn('[Hatch] image upload failed:', upErr.message); return null; }
           const { data: { publicUrl } } = supabaseClient.storage.from('posts').getPublicUrl(path);
-          imageUrl = publicUrl;
-        }
-      }
+          return publicUrl;
+        })
+      );
+      const urls = urlResults.filter(Boolean);
+      // Single URL stays as a plain string (backward compat with existing posts).
+      // Multiple URLs are JSON-encoded into the same TEXT column — no migration needed.
+      const imageUrl = urls.length === 0 ? null
+                     : urls.length === 1 ? urls[0]
+                     : JSON.stringify(urls);
       const { error } = await supabaseClient.from('posts').insert({
-        user_id: uid, caption, image_url: imageUrl, created_at: new Date().toISOString()
+        user_id: uid, caption, image_url: imageUrl,
+        visibility, created_at: new Date().toISOString()
       });
-      if (error) console.warn('[Totem] post insert failed:', error.message);
+      if (error) console.warn('[Hatch] post insert failed:', error.message);
     })();
   }
 
@@ -7104,11 +7141,11 @@ const DEMO_ACCOUNT_EMAIL = 'greta.talbot.jones@gmail.com';
 function renderCollections() {
   const strip = document.getElementById('collectionsStrip');
   if (!strip) return;
-  strip.innerHTML = collectionsData.map(c => `
-    <div class="diary-item" onclick="openCollection(${c.id})" style="cursor:pointer;">
+  strip.innerHTML = collectionsData.map((c, i) => `
+    <div class="diary-item" onclick="openCollection(${i})" style="cursor:pointer;">
       <div class="diary-ring own">
         <div class="diary-ring-inner">
-          <span style="font-size:1.4rem;line-height:1;">${c.emoji}</span>
+          <span style="font-size:1.4rem;line-height:1;">${c.emoji || '📁'}</span>
         </div>
       </div>
       <span class="diary-name">${c.name}</span>
@@ -7125,11 +7162,38 @@ function renderCollections() {
   `;
 }
 
-function openCollection(id) {
-  const c = collectionsData.find(x => x.id === id);
+function openCollection(idx) {
+  const c = collectionsData[idx];
   if (c) showToast('📂 ' + c.name);
 }
-function addCollection() { showToast('Create a new Collection'); }
+
+async function addCollection() {
+  const name = prompt('Collection name:');
+  if (!name || !name.trim()) return;
+  const trimmed = name.trim();
+  const newCol = { id: Date.now(), name: trimmed, emoji: '📁' };
+  collectionsData.push(newCol);
+  renderCollections();
+  if (supabaseClient && currentUser.id && currentUser.name !== DEMO_ACCOUNT_NAME) {
+    const { data, error } = await supabaseClient.from('collections')
+      .insert({ user_id: currentUser.id, name: trimmed })
+      .select('id').single();
+    if (error) { console.warn('[Hatch] collection insert failed:', error.message); return; }
+    if (data) { newCol.id = data.id; renderCollections(); }
+  }
+  showToast('Collection created ✦');
+}
+
+async function loadCollectionsFromSupabase() {
+  if (!supabaseClient || !currentUser.id) return;
+  collectionsData.length = 0;
+  const { data, error } = await supabaseClient
+    .from('collections').select('id, name')
+    .eq('user_id', currentUser.id).order('created_at', { ascending: true });
+  if (error) { console.warn('[Hatch] collections load failed:', error.message); return; }
+  (data || []).forEach(c => collectionsData.push({ id: c.id, name: c.name, emoji: '📁' }));
+  renderCollections();
+}
 
 let profileContentTab = 'photos';
 
@@ -7348,12 +7412,54 @@ async function saveProfile() {
   closeModal('editProfileModal');
 }
 
-function setPrivacy(mode) {
+// persist=true writes to Supabase; pass false when restoring on login to avoid a round-trip
+function setPrivacy(mode, persist = true) {
   profilePrivacy = mode;
   document.getElementById('check-public').style.display  = mode==='public'  ? 'flex' : 'none';
   document.getElementById('check-private').style.display = mode==='private' ? 'flex' : 'none';
   document.getElementById('profileLock').style.display   = mode==='private' ? 'inline' : 'none';
-  if (currentUser) supabaseClient.from('profiles').update({ privacy: mode }).eq('id', currentUser.id);
+  if (persist && supabaseClient && currentUser.id && currentUser.name !== DEMO_ACCOUNT_NAME) {
+    supabaseClient.from('profiles').update({ privacy: mode }).eq('id', currentUser.id)
+      .then(({ error }) => { if (error) console.warn('[Hatch] privacy update failed:', error.message); });
+  }
+}
+
+async function loadProfileSettings() {
+  if (!supabaseClient || !currentUser.id) return;
+  const { data, error } = await supabaseClient
+    .from('profiles')
+    .select('name, bio, privacy, avatar_url')
+    .eq('id', currentUser.id)
+    .single();
+  if (error) { console.warn('[Hatch] loadProfileSettings failed:', error.message); return; }
+  if (data.privacy) setPrivacy(data.privacy, false);
+  if (data.name) {
+    currentUser.name = data.name;
+    const nameEl = document.getElementById('profileName');
+    if (nameEl) nameEl.textContent = data.name;
+  }
+  if (data.bio) {
+    const bioEl = document.getElementById('profileBio');
+    if (bioEl) bioEl.textContent = data.bio;
+  }
+  if (data.avatar_url && !currentUser.avatar) {
+    currentUser.avatar = data.avatar_url;
+    const picEl = document.getElementById('profilePic');
+    if (picEl) picEl.innerHTML = `<img src="${data.avatar_url}" alt="${currentUser.name}" />`;
+  }
+
+  // Load follower / following / post counts from Supabase
+  const [fwrRes, fwingRes, postRes] = await Promise.all([
+    supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', currentUser.id),
+    supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', currentUser.id),
+    supabaseClient.from('posts').select('*', { count: 'exact', head: true }).eq('user_id', currentUser.id).neq('feed_type', 'diary'),
+  ]);
+  const followerEl  = document.getElementById('followerCount');
+  const followingEl = document.getElementById('followingCount');
+  const postCountEl = document.getElementById('postCount');
+  if (followerEl  && fwrRes.count   !== null) followerEl.textContent  = fwrRes.count;
+  if (followingEl && fwingRes.count !== null) followingEl.textContent = fwingRes.count;
+  if (postCountEl && postRes.count  !== null) postCountEl.textContent = postRes.count;
 }
 
 function toggleSetting(id) {
@@ -7873,7 +7979,7 @@ async function openFriendProfile(name) {
   document.getElementById('fpSubNav').style.display = 'flex';
   document.body.style.overflow = 'hidden';
 
-  // Look up this person's profile UUID and check actual follow state
+  // Look up this person's profile UUID, then check follow state and load counts in parallel
   if (supabaseClient && currentUser.id) {
     const { data: profileRow } = await supabaseClient
       .from('profiles')
@@ -7882,15 +7988,18 @@ async function openFriendProfile(name) {
       .maybeSingle();
     if (profileRow) {
       fpCurrentProfileId = profileRow.id;
-      const { data: followRow } = await supabaseClient
-        .from('follows')
-        .select('follower_id')
-        .eq('follower_id', currentUser.id)
-        .eq('following_id', fpCurrentProfileId)
-        .maybeSingle();
-      fpFollowing = !!followRow;
+      const [followRes, fwrRes, fwingRes, postRes] = await Promise.all([
+        supabaseClient.from('follows').select('follower_id').eq('follower_id', currentUser.id).eq('following_id', fpCurrentProfileId).maybeSingle(),
+        supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', fpCurrentProfileId),
+        supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', fpCurrentProfileId),
+        supabaseClient.from('posts').select('*', { count: 'exact', head: true }).eq('user_id', fpCurrentProfileId).neq('feed_type', 'diary'),
+      ]);
+      fpFollowing = !!followRes.data;
       btn.textContent = fpFollowing ? 'Following' : 'Follow';
       btn.classList.toggle('primary', fpFollowing);
+      if (fwrRes.count   !== null) document.getElementById('fpFollowers').textContent = fwrRes.count;
+      if (fwingRes.count !== null) document.getElementById('fpFollowing').textContent = fwingRes.count;
+      if (postRes.count  !== null) document.getElementById('fpPostCount').textContent = postRes.count;
     }
   }
 }
@@ -7914,6 +8023,13 @@ async function toggleFriendFollow() {
   btn.textContent = fpFollowing ? 'Following' : 'Follow';
   btn.classList.toggle('primary', fpFollowing);
 
+  // Optimistically update own following count and friend's follower count
+  const delta = fpFollowing ? 1 : -1;
+  const followingEl   = document.getElementById('followingCount');
+  const fpFollowersEl = document.getElementById('fpFollowers');
+  if (followingEl)   followingEl.textContent   = Math.max(0, (parseInt(followingEl.textContent)   || 0) + delta);
+  if (fpFollowersEl) fpFollowersEl.textContent = Math.max(0, (parseInt(fpFollowersEl.textContent) || 0) + delta);
+
   if (!supabaseClient || !fpCurrentProfileId) return;
 
   if (fpFollowing) {
@@ -7928,6 +8044,9 @@ async function toggleFriendFollow() {
       fpFollowing = false;
       btn.textContent = 'Follow';
       btn.classList.remove('primary');
+      // Roll back optimistic count changes
+      if (followingEl)   followingEl.textContent   = Math.max(0, (parseInt(followingEl.textContent)   || 0) - 1);
+      if (fpFollowersEl) fpFollowersEl.textContent = Math.max(0, (parseInt(fpFollowersEl.textContent) || 0) - 1);
     }
   } else {
     const { error } = await supabaseClient
@@ -7940,6 +8059,9 @@ async function toggleFriendFollow() {
       fpFollowing = true;
       btn.textContent = 'Following';
       btn.classList.add('primary');
+      // Roll back optimistic count changes
+      if (followingEl)   followingEl.textContent   = (parseInt(followingEl.textContent)   || 0) + 1;
+      if (fpFollowersEl) fpFollowersEl.textContent = (parseInt(fpFollowersEl.textContent) || 0) + 1;
     }
   }
 }
@@ -8389,16 +8511,24 @@ async function doLogin() {
 
 // ── Registration step 1: collect details ────
 async function startRegistration() {
+  const inviteCode = (document.getElementById('inviteCode')?.value || '').trim().toUpperCase();
   const name  = document.getElementById('regName').value.trim();
   const email = document.getElementById('regEmail').value.trim();
   const phone = document.getElementById('regPhone').value.trim();
   const pw    = document.getElementById('regPassword').value;
 
+  if (!inviteCode) { authToast('An invite code is required to join'); return; }
   if (!name)  { authToast('Please enter your full name'); return; }
   if (!email || !email.includes('@')) { authToast('Please enter a valid email address'); return; }
   if (pw.length < 8) { authToast('Password must be at least 8 characters'); return; }
 
-  const btn = document.querySelector('#authCard-register .btn-primary');
+  // Validate invite code against Supabase before creating the account
+  const { data: codeRow, error: codeErr } = await supabaseClient
+    .from('invite_codes').select('id, used_by').eq('code', inviteCode).maybeSingle();
+  if (codeErr || !codeRow) { authToast('Invite code not recognised'); return; }
+  if (codeRow.used_by)     { authToast('This invite code has already been used'); return; }
+
+  const btn = document.querySelector('#authCard-start .btn-primary');
   if (btn) { btn.textContent = 'Creating account…'; btn.disabled = true; }
 
   registrationInProgress = true;
@@ -8417,7 +8547,7 @@ async function startRegistration() {
   }
 
   pendingReg = { name, email, phone, password: pw, initial: name[0].toUpperCase(), avatar: null, verified: false,
-    supabaseId: data.user?.id };
+    supabaseId: data.user?.id, inviteCodeId: codeRow.id };
 
   // Go straight to video verification — email confirmation is handled by Supabase in background
   authGoto('authCard-video');
@@ -8577,6 +8707,13 @@ async function finishRegistration(submitted) {
     ? "🎉 Welcome to HATCH! Your identity is under review — we'll be in touch within 24 hours."
     : "👋 Welcome to HATCH! You can verify your identity any time from your profile settings.";
 
+  // Set these before signInWithPassword so onAuthStateChange sees them
+  // even if the SIGNED_IN event fires synchronously inside signIn
+  // (Supabase emits SIGNED_IN before signInWithPassword() returns, so
+  //  any assignment after the await would arrive too late)
+  _pendingNewUserMsg = welcomeMsg;
+  isNewUser = true;
+
   // Attempt to sign in with Supabase using the just-registered credentials
   const { error } = await supabaseClient.auth.signInWithPassword({
     email:    pendingReg.email,
@@ -8595,16 +8732,21 @@ async function finishRegistration(submitted) {
           name: pendingReg.name,
         }, { onConflict: 'id' });
       if (profileError) console.warn('[Hatch] profile upsert failed:', profileError.message);
-    }
 
-    // onAuthStateChange SIGNED_IN will call enterApp — pass the welcome message through
-    _pendingNewUserMsg = welcomeMsg;
-    isNewUser = true;
+      if (pendingReg.inviteCodeId) {
+        const { error: invErr } = await supabaseClient.from('invite_codes')
+          .update({ used_by: userId, used_at: new Date().toISOString() })
+          .eq('id', pendingReg.inviteCodeId).is('used_by', null);
+        if (invErr) console.warn('[Hatch] invite code mark-used failed:', invErr.message);
+      }
+    }
+    // onAuthStateChange already called enterApp via _pendingNewUserMsg
     return;
   }
 
   // Fallback: sign-in failed (e.g. email confirmation required)
   // Enter app locally so the user isn't stuck
+  _pendingNewUserMsg = null; // prevent double welcome toast if state change fires later
   const newUser = {
     id:      pendingReg.supabaseId || null,
     name:    pendingReg.name    || 'New Member',
@@ -8612,7 +8754,6 @@ async function finishRegistration(submitted) {
     email:   pendingReg.email   || '',
     avatar:  null,
   };
-  isNewUser = true;
   enterApp(newUser, true, welcomeMsg);
   if (error.message && (error.message.toLowerCase().includes('confirm') || error.message.toLowerCase().includes('email'))) {
     setTimeout(() => showToast('Check your email inbox to confirm your account!'), 2500);
@@ -8736,6 +8877,8 @@ function enterApp(user, newUser, welcomeMsg) {
       loadFeedFromSupabase();
       loadProfileDiaries();
       loadEventsFromSupabase();
+      loadProfileSettings();
+      loadCollectionsFromSupabase();
     }
 
     const tabBar = document.querySelector('.tab-bar');
@@ -9169,6 +9312,14 @@ async function loadProfileDiaries() {
 
 // ── Feed loader ───────────────────────────
 
+function parseImageUrls(raw) {
+  if (!raw) return [];
+  if (raw.startsWith('[')) {
+    try { return JSON.parse(raw); } catch { /* fall through */ }
+  }
+  return [raw];
+}
+
 async function loadFeedFromSupabase() {
   if (!supabaseClient || !currentUser.id) return;
 
@@ -9179,6 +9330,7 @@ async function loadFeedFromSupabase() {
 
   const followedIds = (followData || []).map(f => f.following_id);
   posts.length = 0;
+  subscribeFeedRealtime(followedIds);
 
   if (followedIds.length === 0) {
     const emptyMsg = document.getElementById('emptyMsg');
@@ -9200,7 +9352,7 @@ async function loadFeedFromSupabase() {
     const authorName = prof.name || 'Someone';
     posts.push({
       id: p.id, user: authorName, initial: authorName[0].toUpperCase(), avatar: prof.avatar_url || null,
-      images: p.image_url ? [p.image_url] : [], caption: p.caption || '',
+      images: parseImageUrls(p.image_url), caption: p.caption || '',
       likes: 0, liked: false, comments: [],
       time: new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
       feedType: p.feed_type || 'personal', audience: p.visibility || 'public',
@@ -9210,6 +9362,44 @@ async function loadFeedFromSupabase() {
   });
   nextPostId = Date.now();
   renderFeed();
+}
+
+function subscribeFeedRealtime(followedIds) {
+  if (_feedRealtimeChannel) {
+    supabaseClient.removeChannel(_feedRealtimeChannel);
+    _feedRealtimeChannel = null;
+  }
+  if (!followedIds.length || !supabaseClient) return;
+  _feedRealtimeChannel = supabaseClient
+    .channel('feed-inserts')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'posts',
+        filter: `user_id=in.(${followedIds.join(',')})`,
+      },
+      async (payload) => {
+        const p = payload.new;
+        if (!p || p.feed_type === 'diary') return;
+        const { data: prof } = await supabaseClient
+          .from('profiles').select('name, avatar_url').eq('id', p.user_id).single();
+        const authorName = prof?.name || 'Someone';
+        posts.unshift({
+          id: p.id,
+          user: authorName, initial: authorName[0].toUpperCase(), avatar: prof?.avatar_url || null,
+          images: parseImageUrls(p.image_url), caption: p.caption || '',
+          likes: 0, liked: false, comments: [],
+          time: 'just now',
+          feedType: p.feed_type || 'personal', audience: p.visibility || 'public',
+          audienceLabel: p.visibility || 'everyone', taggedPeople: [],
+          authStatus: 'real', aiDeclared: false,
+        });
+        renderFeed();
+      }
+    )
+    .subscribe();
 }
 
 // ── Events loader ─────────────────────────
@@ -9296,7 +9486,7 @@ async function runMVPTests() {
   } else {
     const { data: row, error } = await supabaseClient
       .from('posts')
-      .insert({ user_id: currentUser.id, content: 'test diary', feed_type: 'diary', visibility: 'friends', created_at: new Date().toISOString() })
+      .insert({ user_id: currentUser.id, caption: 'test diary', feed_type: 'diary', visibility: 'private', created_at: new Date().toISOString() })
       .select().single();
     if (error) { console.error('FAIL — diary insert:', error.message); }
     else {

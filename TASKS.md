@@ -1,0 +1,173 @@
+# TASKS.md — Hatch Phase 1 Backlog
+
+Work through this list top to bottom. Complete P1 tasks before moving to P2.
+Mark tasks as done by changing `[ ]` to `[x]`.
+After completing each task, run a backup (see CLAUDE.md backup protocol).
+
+---
+
+## Backup Schedule
+
+- [x] **BACKUP-01** — Create `backups/` folder and add to `.gitignore`
+- [x] **BACKUP-02** — Take a timestamped backup before starting each task session
+- [x] **BACKUP-03** — Take a timestamped backup after each completed working feature
+
+> Backup command: `cp index.html backups/index_backup_$(date +%Y%m%d_%H%M).html`
+
+---
+
+## P1 — Blocking (must fix before real user testing)
+
+### ~~P1-1~~ — Post insert discards audience selection ✅
+**Fixed:** Added `visibility` to the `posts.insert` payload in `submitPost()`. Maps UI values ('everyone' → 'public', 'groups'/'event' → 'friends') to DB-valid values. Captured before the async IIFE to avoid the synchronous reset of `selectedAudience` on line 5249.
+
+---
+
+### ~~P1-2~~ — Privacy column missing from profiles migration ✅
+**Fixed:** Created `supabase/migrations/004_add_privacy_column.sql` (ALTER TABLE ADD COLUMN IF NOT EXISTS privacy TEXT NOT NULL DEFAULT 'public' CHECK IN ('public','private')). Fixed `setPrivacy()` to guard against demo account and null supabaseClient, added error logging, and added `persist` param to avoid redundant writes on load. Added `loadProfileSettings()` to fetch name/bio/privacy/avatar_url on login and call `setPrivacy(mode, false)` to restore the saved preference without re-writing it.
+
+---
+
+### ~~P1-3~~ — Diary images stored as base64 in DB column ✅
+**Fixed:** Added `diaryFile` module-level variable. `handleDiaryPhoto()` stores the File object before FileReader runs. `openDiaryModal()` clears it on open. `submitDiaryEntry()` now uploads the file to Supabase Storage (`posts` bucket, path `{userId}/diary_{ts}.{ext}`), uses the Storage public URL for `image_url` in the DB insert, and falls back to `null` (not base64) if the upload fails. Base64 data URL is still used for immediate local strip preview. Added demo account guard.
+
+---
+
+### ~~P1-4~~ — Follower/following counts hardcoded ✅
+**Fixed:** Three changes:
+1. `loadProfileSettings()` — added `Promise.all` with three `head:true, count:'exact'` queries (followers, following, posts) that update `#followerCount`, `#followingCount`, `#postCount` on login for real users. Demo account keeps its hardcoded values.
+2. `openFriendProfile()` — replaced sequential follow-state check with a `Promise.all` that runs follow check + follower count + following count + post count in parallel. Updates `#fpFollowers`, `#fpFollowing`, `#fpPostCount` once `fpCurrentProfileId` is resolved.
+3. `toggleFriendFollow()` — added optimistic ±1 updates to `#followingCount` (own profile) and `#fpFollowers` (friend profile) on follow/unfollow, with rollback on Supabase error.
+
+---
+
+### ~~P1-5~~ — Multi-image posts only save first image ✅
+**Fixed:** `submitPost()` now captures `filesToUpload` from all `selectedImages` before the async IIFE. Uploads all files in parallel via `Promise.all` with unique paths `{uid}/{timestamp}-{index}.{ext}`. Single image stored as plain URL string (backward compat); multiple images stored as `JSON.stringify(urls)` in the existing TEXT column — no migration needed. Added `parseImageUrls()` helper that handles both formats in the read path. `loadFeedFromSupabase()` now calls `parseImageUrls(p.image_url)` so carousels load correctly from Supabase.
+
+---
+
+### ~~P1-6~~ — Text-only posts blocked ✅
+**Fixed:** Removed the hard image guard in `submitPost()`. Combined validation now only blocks if both caption and images are empty, showing a `showToast` instead of an `alert`. `firstExif` safely handles the no-image case with a `|| null` fallback. Text-only posts insert with `image_url: null`.
+
+---
+
+## P2 — Important (needed for Phase 1, not immediately blocking)
+
+### ~~P2-1~~ — Feed requires page refresh for new posts ✅
+**Fixed:** Added `subscribeFeedRealtime(followedIds)` called from `loadFeedFromSupabase()` after resolving followed IDs. Creates a `postgres_changes` INSERT channel filtered to `user_id=in.(...)`. On new post: fetches the author's profile, builds a post object, prepends to `posts`, calls `renderFeed()`. Diary posts are filtered out. Channel is torn down and rebuilt on each feed reload, and cleaned up on `SIGNED_OUT`. `_feedRealtimeChannel` module-level var tracks the active channel.
+
+---
+
+### ~~P2-2~~ — Collections not persisted to Supabase ✅
+**Fixed:** Added `<div id="collectionsStrip">` to profile HTML (was missing — `renderCollections()` was targeting a non-existent element). Updated `renderCollections()` to use array index for onclick (safe for UUID ids). Replaced stub `addCollection()` with async function that uses `prompt()` for name input, inserts to `collections` table, updates local id on response. Added `loadCollectionsFromSupabase()` called from `enterApp()` for non-demo users. Migration `005_collections.sql` creates `collections` and `collection_items` tables with RLS. ⚠️ Run migration in Supabase SQL editor.
+
+---
+
+### ~~P2-3~~ — No invite code system ✅
+**Fixed:** Added `inviteCode` input field at the top of the register panel. `startRegistration()` validates the code against `invite_codes` table (checks it exists and `used_by IS NULL`) before calling `supabase.auth.signUp`. Code ID stored in `pendingReg.inviteCodeId`. After successful profile upsert in `finishRegistration()`, marks the code as used with `UPDATE ... SET used_by = userId, used_at = now() WHERE used_by IS NULL`. Migration `006_invite_codes.sql` creates the table with RLS and seeds 10 test codes (HATCH-ALPHA, HATCH-BETA1–5, etc.). ⚠️ Run migration in Supabase SQL editor.
+
+---
+
+### P2-4 — Follow request flow not implemented
+**What:** Tapping Follow immediately creates a follow. Should send a request the other user approves or declines.
+**Fix:**
+1. Migration: create `follow_requests` table (`id, requester_id, target_id, status, created_at`)
+2. Update `toggleFriendFollow()` to insert into `follow_requests` with status `pending` instead of writing to `follows`
+3. Show "Requested" state on Follow button
+4. Add incoming requests to notifications tab with Approve/Decline buttons
+5. On approve: insert into `follows`, update request status to `approved`
+6. On decline: update request status to `declined`
+**Effort:** Large
+
+---
+
+### P2-5 — Trusted Circles not persisted or created at onboarding
+**What:** `groupDefs` is a hardcoded JS object. No onboarding step creates circles. Audience picker selection is also discarded on post insert (see P1-1).
+**Fix:**
+1. Migration: create `circles` table (`id, user_id, name, created_at`) and `circle_members` table (`id, circle_id, member_id`)
+2. Add a circles setup step at onboarding (after verification)
+3. Load circles from Supabase on login
+4. Wire audience picker to use real circle IDs
+**Effort:** Medium
+
+---
+
+### P2-6 — Feed not filtered by post audience
+**What:** `loadFeedFromSupabase()` returns all posts from followed users regardless of visibility setting.
+**Fix:** Filter feed query to exclude posts where `visibility = 'friends'` unless the viewer is in the poster's circles. Depends on P2-5 circles table being in place.
+**Effort:** Medium
+
+---
+
+### ~~P2-7~~ — Diary/Memories not truly private ✅
+**Fixed:** Changed diary insert in `submitDiaryEntry()` from `visibility: 'friends'` to `visibility: 'private'`. Also fixed the test helper insert. Migration `007_diary_private_rls.sql` adds an RLS SELECT policy on `posts` that permits access only when `feed_type != 'diary'` OR `user_id = auth.uid()`. ⚠️ Run migration in Supabase SQL editor.
+
+---
+
+### P2-8 — Notifications not persisted to Supabase
+**What:** Notifications are created in a client-side array (`notifications.unshift()`) and reset to demo data or empty on every login. No `notifications` table exists. This becomes critical once P2-4 (follow requests) is implemented — users must be able to see pending follow requests after a page reload.
+**Fix:**
+1. Migration: create `notifications` table (`id, user_id, type, actor_id, entity_id, text, read, created_at`)
+2. Write a notification row when: a follow request is sent, a follow request is approved, a user is invited to an event
+3. Load unread notifications from Supabase on login (`loadNotificationsFromSupabase()`) and merge into the notifications array
+4. Mark notifications as read on open (`read = true` update)
+**Effort:** Medium
+**Depends on:** P2-4 (follow requests) for the most important notification type
+
+---
+
+## P3 — Defer (build after initial user testing)
+
+### P3-1 — KYC video verification is a fake UI
+**What:** `startRecording()` is a fake timer — no `getUserMedia`, no `MediaRecorder`. `submitVerification()` sets an in-memory flag only. No video is captured or uploaded.
+**Fix:**
+1. Replace fake timer with real `getUserMedia` + `MediaRecorder` implementation
+2. Upload recorded video blob to a private `kyc-videos` Supabase Storage bucket
+3. Add `verified` column migration to `public.profiles`
+4. Update `profiles.verified = true` on successful upload
+**Effort:** Large
+
+---
+
+### P3-2 — Verified badge is hardcoded to demo profile
+**What:** Verified badge HTML at L2855 is hardcoded to the demo profile. No dynamic check against Supabase.
+**Fix:** On profile load, check `profiles.verified`. Show badge only when `true`. Depends on P3-1 adding the `verified` column.
+**Effort:** Medium
+
+---
+
+### P3-3 — Video post creation not built
+**What:** No video upload path exists. Create menu has no video option.
+**Fix:** Add video option to create menu. Implement video file selection, upload to Supabase Storage `posts` bucket, store public URL in post record.
+**Effort:** Large
+
+---
+
+### P3-4 — Algorithm dial is a tab strip not a real dial
+**What:** Feed mode is a tab strip (Explore/Personal/News/Pulse) not the chronological ↔ suggested slider described in the roadmap. News and Pulse modes rely on demo data.
+**Fix:** Replace tab strip with a real-time slider. Connect slider position to feed sort order and filtering. Persist preference to `profiles` or localStorage.
+**Effort:** Medium
+
+---
+
+## Completed
+
+- [x] AUTH-01 — Avatar upload prompt timing fix: `_pendingNewUserMsg` moved before `await signInWithPassword()` in `finishRegistration()` so `onAuthStateChange` sees it when it fires synchronously inside Supabase's signIn
+- [x] Search returning results (migration 003 applied)
+- [x] Friend profile layout matches own profile layout
+- [x] Bottom nav visible on friend profile
+- [x] Friend profile sub-nav (Posts / Pulse / Tagged)
+- [x] Follow button text displaying correctly
+- [x] Sub-nav positioning fixed
+- [x] News feed BBC/Guardian only showing for followed outlets
+- [x] `openChatFromProfile()` function completed
+- [x] Profile name backfilled for existing users
+- [x] Avatar upload working (uploads to avatars bucket, writes avatar_url to profiles)
+- [x] Profile name/bio editing persisted to Supabase
+- [x] Sign up / sign in / sign out working
+- [x] Password reset working (sendResetLink calls resetPasswordForEmail)
+- [x] Avatar upload prompt shown post signup (900ms delay for new non-demo users)
+- [x] Feed loads from followed users only (loadFeedFromSupabase filters by follows table)
+- [x] Feed ordered chronologically (created_at descending)
+- [x] Demo data gated correctly (isDemoAccount guard clears all demo arrays)
+- [x] Follow/unfollow persisted to Supabase follows table
