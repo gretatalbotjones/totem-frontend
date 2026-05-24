@@ -71,43 +71,23 @@ After completing each task, run a backup (see CLAUDE.md backup protocol).
 
 ---
 
-### UI-07 — Diary entries appearing in collections instead of feed strip
-**What:** When a diary entry is submitted it is appearing in the collections strip on the profile page instead of the diary/stories strip at the top of the feed. A diary entry should:
-- Appear in the circular stories strip at the top of the feed
-- Disappear after 24 hours
-- Only appear in a collection if the user explicitly saves it to one
-
-**Fix:**
-1. Audit how `submitDiaryEntry()` writes to Supabase — check `feed_type`, `visibility` and any `collection_id` field
-2. Audit `loadCollectionsFromSupabase()` — check if it is accidentally picking up diary entries
-3. Ensure collections query filters OUT `feed_type = 'diary'` entries so they never appear in collections
-4. Ensure the diary strip query filters for `feed_type = 'diary'` only and entries from last 24 hours
-5. Confirm the two data paths are completely separate and do not overlap
-**Effort:** Medium
+### ~~UI-07~~ — Diary entries appearing in collections instead of feed strip ✅
+**Fixed:** Audited both data paths — diary entries write `feed_type: 'diary'` and collections query only the `collections` table, so there was no actual data overlap. Root cause was visual: `#profileDiariesStrip` and `#collectionsStrip` were adjacent with no labels, both using identical diary-item circle UI. Added "Diary" section heading above `#profileDiariesStrip` and "Collections" heading above `#collectionsStrip` to clearly distinguish them.
 
 ---
 
-### UI-08 — Collections layout broken on profile page
-**What:** The "New Collection" button appears in a row below existing collections instead of inline with them. Collections and the New button should all appear in a single horizontal scrollable row.
-**Fix:** Audit the collections strip HTML and `renderCollections()` function. Ensure the New button and collection items are all siblings in the same flex row container. Check whether `loadCollectionsFromSupabase()` is appending correctly or creating a new row element.
-**Effort:** Small
+### ~~UI-08~~ — Collections layout broken on profile page ✅
+**Fixed:** Added `flex-wrap: nowrap` to the `#collectionsStrip` inline style so all items (including the New Collection button) stay in a single horizontal scrollable row. Combined with the "Collections" label added in UI-07, the strip is now visually correct.
 
 ---
 
-### UI-09 — Follower/post counts reset when switching tabs
-**What:** Follower count and post count on the own profile header change to incorrect values when navigating away from the profile tab and returning to it.
-**Fix:** Audit what happens when the profile tab is re-selected. Check whether `switchTab()` or any tab change handler is resetting profile stats to defaults (0 or hardcoded values) before `loadProfileSettings()` has a chance to reload them. Fix so counts are either cached correctly or reloaded cleanly without flickering to wrong values.
-**Effort:** Small
+### ~~UI-09~~ — Follower/post counts reset when switching tabs ✅
+**Fixed:** `renderFeed()` and `renderProfileGallery()` were both overwriting `#postCount` from the in-memory `posts` array. For real users the feed only contains followed users' posts, so their own posts were typically absent — setting the count to 0 or very low and overwriting the authoritative count from `loadProfileSettings()`. Guarded both updates so they only run for the demo account.
 
 ---
 
-### UI-10 — News and Pulse feeds show personal feed content
-**What:** Clicking News or Pulse in the feed sub-nav (Explore / Personal / News / Pulse) shows the personal feed instead of the correct content.
-**Fix:**
-1. News sub-nav: show empty state message "No news sources followed yet" if user follows no verified news outlets. Do not show personal posts.
-2. Pulse sub-nav: show posts where `feed_type = 'pulse'` from followed users only. If none exist yet show "No pulse posts yet".
-3. Ensure `setFeedMode()` correctly filters by `feed_type` when switching modes.
-**Effort:** Small
+### ~~UI-10~~ — News and Pulse feeds show personal feed content ✅
+**Fixed:** Two root causes: (1) `fetchLiveNews()` referenced `isDemoAccount` which is a `const` local to `enterApp()` — inaccessible from this outer function, throwing a ReferenceError that prevented the personal-post hide logic from running. Fixed by replacing with `currentUser.name !== DEMO_ACCOUNT_NAME`. (2) `submitPost()` was not writing `feed_type` to Supabase, so all posts had NULL `feed_type` and were not filterable by mode. Fixed by adding `feed_type: 'personal'` to the insert payload. `setFeedMode()` already filters by `data-feed-type` attribute so Pulse correctly shows empty for real users until FEATURE-01 adds Pulse post creation.
 
 ---
 
@@ -143,14 +123,8 @@ After completing each task, run a backup (see CLAUDE.md backup protocol).
 
 ---
 
-### P2-5 — Trusted Circles not persisted or created at onboarding
-**What:** `groupDefs` is a hardcoded JS object. No onboarding step creates circles. Audience picker selection is also discarded on post insert (see P1-1).
-**Fix:**
-1. Migration: create `circles` table (`id, user_id, name, created_at`) and `circle_members` table (`id, circle_id, member_id`)
-2. Add a circles setup step at onboarding (after verification)
-3. Load circles from Supabase on login
-4. Wire audience picker to use real circle IDs
-**Effort:** Medium
+### ~~P2-5~~ — Trusted Circles not persisted or created at onboarding ✅
+**Fixed:** Migration `017_circles.sql` creates `circles` (id, user_id, name, created_at) and `circle_members` (id, circle_id, member_id, created_at) tables with RLS. `loadCirclesFromSupabase()` queries the circles table on login and replaces `groupDefs` with real DB rows for non-demo users. `renderGroupChipsInPostModal()` re-renders the audience picker group chips from live `groupDefs` after any circles change. `addNewGroup()`, `deleteCurrentGroup()`, and `saveCurrentGroup()` all persist to Supabase for real users with demo fallbacks. Default "Family" and "Close Friends" circles are seeded for every new account in `finishRegistration()`. Group manager shows an empty-state prompt for real users (no contacts array yet — member management is wired to `circle_members` in a follow-up once followed users are loaded into contacts). ⚠️ Run migration `017_circles.sql` in Supabase SQL editor.
 
 ---
 

@@ -2886,6 +2886,7 @@
     </div>
 
     <!-- Profile diary strip (demo items hidden for real users; real entries appended by loadProfileDiaries) -->
+    <div style="padding: 12px 16px 4px; font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;">Diary</div>
     <div class="diaries-strip" id="profileDiariesStrip" style="padding: 4px 20px 8px 8px; border-bottom: 1px solid var(--border);">
       <div class="diary-item" style="cursor:pointer;" onclick="showToast('🇪🇸 Spain')">
         <div class="diary-ring own">
@@ -2923,7 +2924,8 @@
 
 
     <!-- Collections -->
-    <div class="diaries-strip" id="collectionsStrip" style="padding: 4px 20px 8px 8px; border-bottom: 1px solid var(--border);"></div>
+    <div style="padding: 12px 16px 4px; font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;">Collections</div>
+    <div class="diaries-strip" id="collectionsStrip" style="padding: 4px 20px 8px 8px; border-bottom: 1px solid var(--border); flex-wrap: nowrap;"></div>
 
     <!-- Gallery -->
     <div style="margin-bottom:20px; margin-left:-12px; margin-right:-12px; margin-top:0;">
@@ -5104,6 +5106,21 @@ function toggleGroup(chip) {
   selectedGroups = [...document.querySelectorAll('.group-chip.selected')].map(c => c.dataset.group);
 }
 
+function renderGroupChipsInPostModal() {
+  const wrap = document.getElementById('groupSelectWrap');
+  if (!wrap) return;
+  if (!groupDefs.length) {
+    wrap.innerHTML = `<span style="font-size:0.8rem;color:var(--muted);">No circles yet — create one in Groups</span>`;
+    return;
+  }
+  const emojis = ['👨‍👩‍👧','⭐','🎯','🎨','🏋️','🎵','📚','💼','🎓','🌍'];
+  wrap.innerHTML = groupDefs.map((g, i) => {
+    const emoji = g.emoji && g.emoji !== '⭕' ? g.emoji : emojis[i % emojis.length];
+    const safeName = g.name.replace(/"/g, '&quot;');
+    return `<div class="group-chip" data-group="${safeName}" onclick="toggleGroup(this)">${emoji} ${g.name}</div>`;
+  }).join('');
+}
+
 // ══════════════════════════════════════════
 //  CAROUSEL UPLOAD
 // ══════════════════════════════════════════
@@ -5274,7 +5291,7 @@ function submitPost() {
                      : JSON.stringify(urls);
       const { error } = await supabaseClient.from('posts').insert({
         user_id: uid, caption, image_url: imageUrl,
-        visibility, created_at: new Date().toISOString()
+        feed_type: 'personal', visibility, created_at: new Date().toISOString()
       });
       if (error) console.warn('[Hatch] post insert failed:', error.message);
     })();
@@ -5445,10 +5462,10 @@ async function fetchLiveNews() {
   const emptyMsg = document.getElementById('emptyMsg');
 
   // Non-demo users haven't followed any news sources — show empty state
-  if (!isDemoAccount) {
+  if (currentUser.name !== DEMO_ACCOUNT_NAME) {
     document.querySelectorAll('.post-card').forEach(c => c.style.display = 'none');
     if (emptyMsg) {
-      emptyMsg.textContent = 'Follow news sources to see articles here';
+      emptyMsg.textContent = 'No news sources followed yet ✦';
       emptyMsg.style.display = 'block';
     }
     return;
@@ -5668,7 +5685,7 @@ function renderFeed() {
   const feed = document.getElementById('feed');
   const emptyMsg = document.getElementById('emptyMsg');
   const postCountEl = document.getElementById('postCount');
-  if (postCountEl) postCountEl.textContent = posts.filter(p => p.user === currentUser.name).length;
+  if (postCountEl && currentUser.name === DEMO_ACCOUNT_NAME) postCountEl.textContent = posts.filter(p => p.user === currentUser.name).length;
 
   if (posts.length === 0) { if (emptyMsg) emptyMsg.style.display = 'block'; if (feed) { feed.innerHTML = ''; if (emptyMsg) feed.appendChild(emptyMsg); } return; }
   if (emptyMsg) emptyMsg.style.display = 'none';
@@ -7408,6 +7425,24 @@ async function loadCollectionsFromSupabase() {
   renderCollections();
 }
 
+async function loadCirclesFromSupabase() {
+  if (!supabaseClient || !currentUser.id || currentUser.name === DEMO_ACCOUNT_NAME) return;
+  const { data, error } = await supabaseClient
+    .from('circles')
+    .select('id, name')
+    .eq('user_id', currentUser.id)
+    .order('created_at', { ascending: true });
+  if (error) { console.warn('[Hatch] loadCirclesFromSupabase:', error.message); return; }
+  const emojis = ['👨‍👩‍👧','⭐','🎯','🎨','🏋️','🎵','📚','💼','🎓','🌍'];
+  groupDefs = (data || []).map((c, i) => ({
+    id:      c.id,
+    name:    c.name,
+    emoji:   emojis[i % emojis.length],
+    members: [],
+  }));
+  renderGroupChipsInPostModal();
+}
+
 let profileContentTab = 'photos';
 
 function setProfileContentTab(tab, el) {
@@ -7487,7 +7522,7 @@ function renderProfileGallery() {
   // ── Photos tab (default) ──
   const myPosts = posts.filter(p => p.user === currentUser.name && p.feedType !== 'pulse');
   const pcEl = document.getElementById('postCount');
-  if (pcEl) pcEl.textContent = myPosts.length;
+  if (pcEl && currentUser.name === DEMO_ACCOUNT_NAME) pcEl.textContent = myPosts.length;
 
   if (myPosts.length === 0) { gallery.innerHTML = `<div class="empty-state">No photos yet ✦</div>`; return; }
 
@@ -9005,6 +9040,12 @@ async function finishRegistration(submitted) {
           .eq('id', pendingReg.inviteCodeId).is('used_by', null);
         if (invErr) console.warn('[Hatch] invite code mark-used failed:', invErr.message);
       }
+      // Seed default Trusted Circles so the audience picker is ready immediately
+      const { error: circlesErr } = await supabaseClient.from('circles').insert([
+        { user_id: userId, name: 'Family' },
+        { user_id: userId, name: 'Close Friends' },
+      ]);
+      if (circlesErr) console.warn('[Hatch] default circles seed failed:', circlesErr.message);
     }
     // onAuthStateChange already called enterApp via _pendingNewUserMsg
     return;
@@ -9146,6 +9187,7 @@ function enterApp(user, newUser, welcomeMsg) {
       loadEventsFromSupabase();
       loadProfileSettings();
       loadCollectionsFromSupabase();
+      loadCirclesFromSupabase();
       loadNotificationsFromSupabase();
     }
 
@@ -9458,7 +9500,13 @@ function renderGroupContent() {
 function renderGroupMemberList(filter) {
   const grp = groupDefs.find(g => g.id === activeGroupId);
   if (!grp) return;
-  
+
+  const container = document.getElementById('groupMemberList');
+  if (!contacts.length) {
+    container.innerHTML = `<div style="text-align:center;padding:24px;color:var(--muted);font-size:0.85rem;">Follow people to add them to this circle</div>`;
+    return;
+  }
+
   // Sort: suggested first, then members, then rest
   const scored = contacts.map(c => {
     const isMember = grp.members.includes(c.name);
@@ -9546,15 +9594,33 @@ function filterGroupMembers(val) {
   renderGroupMemberList(val);
 }
 
-function addNewGroup() {
-  const id = 'custom_' + Date.now();
+async function addNewGroup() {
   const emojis = ['🎯','🎨','🏋️','🎵','📚','💼','🎓','🌍'];
+  if (supabaseClient && currentUser.id && currentUser.name !== DEMO_ACCOUNT_NAME) {
+    const name = prompt('Circle name:');
+    if (!name?.trim()) return;
+    const { data, error } = await supabaseClient
+      .from('circles')
+      .insert({ user_id: currentUser.id, name: name.trim() })
+      .select('id, name')
+      .single();
+    if (error) { console.warn('[Hatch] addNewGroup:', error.message); showToast('Could not create circle'); return; }
+    const allEmojis = ['👨‍👩‍👧','⭐','🎯','🎨','🏋️','🎵','📚','💼','🎓','🌍'];
+    const emoji = allEmojis[groupDefs.length % allEmojis.length];
+    groupDefs.push({ id: data.id, name: data.name, emoji, members: [] });
+    activeGroupId = data.id;
+    renderGroupTabs();
+    renderGroupContent();
+    renderGroupChipsInPostModal();
+    return;
+  }
+  // Demo: in-memory only
+  const id = 'custom_' + Date.now();
   const emoji = emojis[groupDefs.length % emojis.length];
   groupDefs.push({ id, name: 'New Group', emoji, members: [] });
   activeGroupId = id;
   renderGroupTabs();
   renderGroupContent();
-  // Focus name input
   setTimeout(() => {
     const inp = document.getElementById('groupNameInput');
     inp.select();
@@ -9562,32 +9628,46 @@ function addNewGroup() {
   }, 50);
 }
 
-function deleteCurrentGroup() {
+async function deleteCurrentGroup() {
   if (!activeGroupId || activeGroupId === 'family' || activeGroupId === 'closeFriends') return;
-  if (!confirm('Delete this group?')) return;
+  if (!confirm('Delete this circle?')) return;
+  if (supabaseClient && currentUser.id && currentUser.name !== DEMO_ACCOUNT_NAME) {
+    const { error } = await supabaseClient.from('circles').delete().eq('id', activeGroupId);
+    if (error) { console.warn('[Hatch] deleteCurrentGroup:', error.message); showToast('Could not delete circle'); return; }
+  }
   const idx = groupDefs.findIndex(g => g.id === activeGroupId);
   if (idx >= 0) groupDefs.splice(idx, 1);
   activeGroupId = groupDefs.length > 0 ? groupDefs[0].id : null;
   renderGroupTabs();
   if (activeGroupId) renderGroupContent();
+  renderGroupChipsInPostModal();
 }
 
-function saveCurrentGroup() {
+async function saveCurrentGroup() {
   const grp = groupDefs.find(g => g.id === activeGroupId);
   if (!grp) return;
   const newName = document.getElementById('groupNameInput').value.trim();
   if (newName) grp.name = newName;
-  
-  // Sync legacy groups object
-  if (grp.id === 'family') groups.family = [...grp.members];
-  if (grp.id === 'closeFriends') groups.closeFriends = [...grp.members];
-  
+
+  if (supabaseClient && currentUser.id && currentUser.name !== DEMO_ACCOUNT_NAME) {
+    if (newName) {
+      const { error } = await supabaseClient
+        .from('circles').update({ name: newName }).eq('id', grp.id);
+      if (error) console.warn('[Hatch] saveCurrentGroup name:', error.message);
+    }
+  } else {
+    // Demo: sync legacy groups object
+    if (grp.id === 'family') groups.family = [...grp.members];
+    if (grp.id === 'closeFriends') groups.closeFriends = [...grp.members];
+  }
+
   // Refresh following labels if modal is open
   if (document.getElementById('followingModal').classList.contains('open')) {
     renderFollowingItems(document.getElementById('followingSearch').value);
   }
-  
+
   renderGroupTabs();
+  renderGroupChipsInPostModal();
   showToast(`✓ "${grp.name}" saved`);
   closeModal('groupManagerModal');
 }
