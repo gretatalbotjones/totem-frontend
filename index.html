@@ -8896,7 +8896,9 @@ async function quickLogin() {
     email:    DEMO_USER.email,
     password: DEMO_USER.password,
   });
-  if (error) { authToast(error.message); enterApp(DEMO_USER, false); }
+  // If Supabase login fails (e.g. demo account not in Supabase), fall back
+  // silently to demo mode — do NOT show an error toast, it looks like breakage
+  if (error) { enterApp(DEMO_USER, false); }
 }
 
 // ── Email login ─────────────────────────────
