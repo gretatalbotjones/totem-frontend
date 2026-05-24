@@ -127,6 +127,21 @@ After completing each task, run a backup (see CLAUDE.md backup protocol).
 **Fixed:** Migration `017_circles.sql` creates `circles` (id, user_id, name, created_at) and `circle_members` (id, circle_id, member_id, created_at) tables with RLS. `loadCirclesFromSupabase()` queries the circles table on login and replaces `groupDefs` with real DB rows for non-demo users. `renderGroupChipsInPostModal()` re-renders the audience picker group chips from live `groupDefs` after any circles change. `addNewGroup()`, `deleteCurrentGroup()`, and `saveCurrentGroup()` all persist to Supabase for real users with demo fallbacks. Default "Family" and "Close Friends" circles are seeded for every new account in `finishRegistration()`. Group manager shows an empty-state prompt for real users (no contacts array yet — member management is wired to `circle_members` in a follow-up once followed users are loaded into contacts).
 ---
 
+### ~~SOCIAL-01~~ — Comments not working for real users ✅
+**Fixed:** All `onclick` handlers in `buildPostCard()` (both pulse and main feed sections) and `renderProfileGallery()` now quote the post ID (`'${post.id}'`) so UUID strings are valid JS. `toggleComments()` calls `loadComments(postId)` whenever the section opens — this queries `comments` joined with `profiles(name, avatar_url)` and re-renders with real avatars/names. `addComment()` is now async: optimistically appends the comment, inserts into Supabase `comments` table, and rolls back (removes the item, restores the input) on error. `buildCommentHtml()` accepts `avatar_url` field. All Supabase writes guarded with demo account check. Works on both photo posts and pulse posts.
+
+---
+
+### ~~SOCIAL-02~~ — Likes not persisting ✅
+**Fixed:** `toggleLike()` is now async with optimistic UI: flips the in-memory `liked`/`likes` state and updates the button immediately, then inserts or deletes from the `likes` table. Rolls back on error (ignores duplicate key `23505`). `loadLikesForFeed()` runs after `renderFeed()` in `loadFeedFromSupabase()` — parallel queries for all like counts and the current user's own likes, updates all visible like buttons. Fully guarded with demo account check.
+
+---
+
+### ~~SOCIAL-03~~ — Save post not persisting ✅
+**Fixed:** `toggleSave()` is now async with optimistic UI: flips `saved` state and updates the bookmark icon immediately, then inserts or deletes from `saved_posts`. Rolls back on error. `loadSavedPostsForFeed()` runs after `renderFeed()` in `loadFeedFromSupabase()` — restores all saved states from DB. `loadSavedPostsForProfile()` queries `saved_posts` joined with `posts` and `profiles`, renders the profile Saved tab from Supabase for real users (grid or linear view). `setProfileContentTab()` calls `loadSavedPostsForProfile()` for real users when tab === 'saved'. Demo account falls back to in-memory `posts.filter(p => p.saved)` unchanged.
+
+---
+
 ### P2-6 — Feed not filtered by post audience
 **What:** `loadFeedFromSupabase()` returns all posts from followed users regardless of visibility setting.
 **Fix:** Filter feed query to exclude posts where `visibility = 'friends'` unless the viewer is in the poster's circles. Depends on P2-5 circles table being in place.

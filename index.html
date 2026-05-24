@@ -5604,15 +5604,15 @@ function buildPostCard(post) {
         ${sourceTag}
         <div class="pulse-body">${post.caption||post.text||''}</div>
         <div class="post-actions">
-          <button class="like-btn ${post.liked ? 'liked' : ''}" onclick="toggleLike(${post.id})">${post.liked ? '♥' : '♡'}</button>
-          <button class="comment-toggle" onclick="toggleComments(${post.id})">💬</button>
-          <button class="send-btn" onclick="openSendPost(${post.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
-          <button class="save-btn ${post.saved ? 'saved' : ''}" id="save-btn-${post.id}" onclick="toggleSave(${post.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="${post.saved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+          <button class="like-btn ${post.liked ? 'liked' : ''}" onclick="toggleLike('${post.id}')">${post.liked ? '♥' : '♡'}</button>
+          <button class="comment-toggle" onclick="toggleComments('${post.id}')">💬</button>
+          <button class="send-btn" onclick="openSendPost('${post.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+          <button class="save-btn ${post.saved ? 'saved' : ''}" id="save-btn-${post.id}" onclick="toggleSave('${post.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="${post.saved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
           <div class="post-actions-right"><span class="post-time">${post.time||''}</span></div>
         </div>
         <div class="comments-section" id="comments-${post.id}">
           <div class="comment-list" id="comment-list-${post.id}">${pulseCommentsHtml}</div>
-          <div class="comment-form"><input type="text" id="comment-input-${post.id}" placeholder="Add a comment…" /><button onclick="addComment(${post.id})">Post</button></div>
+          <div class="comment-form"><input type="text" id="comment-input-${post.id}" placeholder="Add a comment…" /><button onclick="addComment('${post.id}')">Post</button></div>
         </div>
       </div>`;
     return card;
@@ -5660,13 +5660,13 @@ function buildPostCard(post) {
       </div>
     </div>
     <div class="post-actions">
-      <button class="like-btn ${post.liked ? 'liked' : ''}" onclick="toggleLike(${post.id})">${post.liked ? '♥' : '♡'}</button>
-      <button class="comment-toggle" onclick="toggleComments(${post.id})">💬</button>
-      <button class="send-btn" onclick="openSendPost(${post.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
-      <button class="save-btn ${post.saved ? 'saved' : ''}" id="save-btn-${post.id}" onclick="toggleSave(${post.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="${post.saved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+      <button class="like-btn ${post.liked ? 'liked' : ''}" onclick="toggleLike('${post.id}')">${post.liked ? '♥' : '♡'}</button>
+      <button class="comment-toggle" onclick="toggleComments('${post.id}')">💬</button>
+      <button class="send-btn" onclick="openSendPost('${post.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+      <button class="save-btn ${post.saved ? 'saved' : ''}" id="save-btn-${post.id}" onclick="toggleSave('${post.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="${post.saved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
       <div class="post-actions-right">
         ${buildAuthBadge(post)}
-        ${post.exif && !post.aiDeclared ? `<button class="btn btn-ghost btn-sm" onclick="toggleExif(${post.id})" style="font-size:0.7rem;padding:3px 9px;">Details</button>` : ''}
+        ${post.exif && !post.aiDeclared ? `<button class="btn btn-ghost btn-sm" onclick="toggleExif('${post.id}')" style="font-size:0.7rem;padding:3px 9px;">Details</button>` : ''}
         <span class="post-time">${post.time}</span>
       </div>
     </div>
@@ -5675,7 +5675,7 @@ function buildPostCard(post) {
     <div class="exif-popover" id="exif-${post.id}">${buildExifPanel(post)}</div>
     <div class="comments-section" id="comments-${post.id}">
       <div class="comment-list" id="comment-list-${post.id}">${commentsHtml}</div>
-      <div class="comment-form"><input type="text" id="comment-input-${post.id}" placeholder="Add a comment…" /><button onclick="addComment(${post.id})">Post</button></div>
+      <div class="comment-form"><input type="text" id="comment-input-${post.id}" placeholder="Add a comment…" /><button onclick="addComment('${post.id}')">Post</button></div>
     </div>
   `;
   return card;
@@ -5779,17 +5779,34 @@ function initCarouselSwipe(postId) {
   }, { passive: true });
 }
 
-function toggleLike(id) {
-  const post = posts.find(p => p.id === id);
+async function toggleLike(id) {
+  const post = posts.find(p => p.id == id);
+  if (!post) return;
+  const wasLiked = post.liked;
   post.liked = !post.liked;
   post.likes += post.liked ? 1 : -1;
-  if (post.liked) trackInteraction(id, 'like'); // signal interest to explore algorithm
+  if (post.liked) trackInteraction(id, 'like');
   const card = document.getElementById('post-' + id);
   if (card) {
     const btn = card.querySelector('.like-btn');
-    const countSpan = btn.querySelector('span');
-    btn.innerHTML = post.liked ? '♥' : '♡';
-    btn.classList.toggle('liked', post.liked);
+    if (btn) { btn.innerHTML = post.liked ? '♥' : '♡'; btn.classList.toggle('liked', post.liked); }
+  }
+  if (supabaseClient && currentUser.id && currentUser.name !== DEMO_ACCOUNT_NAME) {
+    let err;
+    if (post.liked) {
+      ({ error: err } = await supabaseClient.from('likes').insert({ post_id: id, user_id: currentUser.id }));
+    } else {
+      ({ error: err } = await supabaseClient.from('likes').delete().eq('post_id', id).eq('user_id', currentUser.id));
+    }
+    if (err && err.code !== '23505') {
+      console.warn('[Hatch] toggleLike:', err.message);
+      post.liked = wasLiked;
+      post.likes += wasLiked ? 1 : -1;
+      if (card) {
+        const btn = card.querySelector('.like-btn');
+        if (btn) { btn.innerHTML = post.liked ? '♥' : '♡'; btn.classList.toggle('liked', post.liked); }
+      }
+    }
   }
 }
 
@@ -5810,25 +5827,66 @@ function buildCommentAvatar(name) {
 }
 
 function buildCommentHtml(c) {
-  return `<div class="comment-item" style="display:flex;align-items:flex-start;gap:8px;">${buildCommentAvatar(c.user)}<div><strong>${c.user}</strong> ${c.text}</div></div>`;
+  const name = c.user || c.name || '?';
+  let avatarHtml;
+  if (c.avatar_url) {
+    avatarHtml = `<img src="${c.avatar_url}" alt="${name}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;" />`;
+  } else {
+    avatarHtml = buildCommentAvatar(name);
+  }
+  return `<div class="comment-item" style="display:flex;align-items:flex-start;gap:8px;">${avatarHtml}<div><strong>${name}</strong> ${c.text || c.content || ''}</div></div>`;
 }
 
 function toggleComments(id) {
-  document.getElementById('comments-' + id).classList.toggle('open');
+  const section = document.getElementById('comments-' + id);
+  const wasOpen = section.classList.contains('open');
+  section.classList.toggle('open');
+  if (!wasOpen) loadComments(id);
+}
+
+async function loadComments(postId) {
+  if (!supabaseClient || !currentUser.id || currentUser.name === DEMO_ACCOUNT_NAME) return;
+  const { data, error } = await supabaseClient
+    .from('comments')
+    .select('id, content, created_at, profiles!comments_user_id_fkey(name, avatar_url)')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: true });
+  if (error) { console.warn('[Hatch] loadComments:', error.message); return; }
+  const list = document.getElementById('comment-list-' + postId);
+  if (!list) return;
+  const comments = (data || []).map(c => ({
+    user: c.profiles?.name || 'Someone',
+    avatar_url: c.profiles?.avatar_url || null,
+    text: c.content,
+  }));
+  const post = posts.find(p => p.id == postId);
+  if (post) post.comments = comments;
+  list.innerHTML = comments.map(c => buildCommentHtml(c)).join('');
 }
 
 // ── Save post ──
-function toggleSave(id) {
-  const post = posts.find(p => p.id === id);
+async function toggleSave(id) {
+  const post = posts.find(p => p.id == id);
   if (!post) return;
+  const wasSaved = post.saved;
   post.saved = !post.saved;
   const btn = document.getElementById('save-btn-' + id);
-  if (btn) {
-    btn.classList.toggle('saved', post.saved);
-    const svgFill = post.saved ? 'currentColor' : 'none';
-    btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="${svgFill}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
-  }
+  const svgFor = (filled) => `<svg width="15" height="15" viewBox="0 0 24 24" fill="${filled ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
+  if (btn) { btn.classList.toggle('saved', post.saved); btn.innerHTML = svgFor(post.saved); }
   showToast(post.saved ? '✦ Post saved' : 'Post removed from saved');
+  if (supabaseClient && currentUser.id && currentUser.name !== DEMO_ACCOUNT_NAME) {
+    let err;
+    if (post.saved) {
+      ({ error: err } = await supabaseClient.from('saved_posts').insert({ user_id: currentUser.id, post_id: id }));
+    } else {
+      ({ error: err } = await supabaseClient.from('saved_posts').delete().eq('user_id', currentUser.id).eq('post_id', id));
+    }
+    if (err && err.code !== '23505') {
+      console.warn('[Hatch] toggleSave:', err.message);
+      post.saved = wasSaved;
+      if (btn) { btn.classList.toggle('saved', post.saved); btn.innerHTML = svgFor(post.saved); }
+    }
+  }
 }
 
 // ── Send post ──
@@ -5881,23 +5939,33 @@ function confirmSendPost(contactName) {
   showToast(`✦ Sent to ${contactName.split(' ')[0]}`);
 }
 
-function addComment(id) {
+async function addComment(id) {
   const input = document.getElementById('comment-input-' + id);
   const text = input.value.trim();
   if (!text) return;
-  trackInteraction(id, 'comment'); // signal strong interest to explore algorithm
-  const post = posts.find(p => p.id === id);
-  post.comments.push({ user: currentUser.name, text });
+  trackInteraction(id, 'comment');
+  const commentData = { user: currentUser.name, avatar_url: currentUser.avatar || null, text };
   const list = document.getElementById('comment-list-' + id);
   const item = document.createElement('div');
-  item.innerHTML = buildCommentHtml({ user: currentUser.name, text });
+  item.innerHTML = buildCommentHtml(commentData);
   list.appendChild(item);
-  const commentCountSpan = document.querySelector(`#post-${id} .comment-toggle span`) || document.getElementById(`pulse-comment-count-${id}`);
-  if (commentCountSpan) commentCountSpan.textContent = post.comments.length;
-  // Profile linear view: the toggle is a button with text content directly
-  const profileToggleBtn = document.querySelector(`#post-${id} .photo-linear-meta .comment-toggle`);
-  if (profileToggleBtn) profileToggleBtn.textContent = `💬 ${post.comments.length} comments`;
   input.value = '';
+  const post = posts.find(p => p.id == id);
+  if (post) post.comments.push(commentData);
+  const countSpan = document.querySelector(`#post-${id} .comment-toggle span`);
+  if (countSpan && post) countSpan.textContent = post.comments.length;
+  const profileToggleBtn = document.querySelector(`#post-${id} .photo-linear-meta .comment-toggle`);
+  if (profileToggleBtn && post) profileToggleBtn.textContent = `💬 ${post.comments.length} comments`;
+  if (supabaseClient && currentUser.id && currentUser.name !== DEMO_ACCOUNT_NAME) {
+    const { error } = await supabaseClient.from('comments').insert({ post_id: id, user_id: currentUser.id, content: text });
+    if (error) {
+      console.warn('[Hatch] addComment:', error.message);
+      item.remove();
+      if (post) post.comments.pop();
+      input.value = text;
+      showToast('Failed to post comment — try again');
+    }
+  }
 }
 
 function buildAuthBadge(post) {
@@ -7443,13 +7511,92 @@ async function loadCirclesFromSupabase() {
   renderGroupChipsInPostModal();
 }
 
+async function loadLikesForFeed() {
+  if (!supabaseClient || !currentUser.id || currentUser.name === DEMO_ACCOUNT_NAME || posts.length === 0) return;
+  const postIds = posts.map(p => p.id);
+  const [countsRes, myRes] = await Promise.all([
+    supabaseClient.from('likes').select('post_id').in('post_id', postIds),
+    supabaseClient.from('likes').select('post_id').in('post_id', postIds).eq('user_id', currentUser.id),
+  ]);
+  if (countsRes.error) { console.warn('[Hatch] loadLikesForFeed:', countsRes.error.message); return; }
+  const countMap = {};
+  (countsRes.data || []).forEach(r => { countMap[r.post_id] = (countMap[r.post_id] || 0) + 1; });
+  const likedSet = new Set((myRes.data || []).map(r => r.post_id));
+  posts.forEach(p => {
+    p.likes = countMap[p.id] || 0;
+    p.liked = likedSet.has(p.id);
+    const card = document.getElementById('post-' + p.id);
+    if (card) {
+      const btn = card.querySelector('.like-btn');
+      if (btn) { btn.innerHTML = p.liked ? '♥' : '♡'; btn.classList.toggle('liked', p.liked); }
+    }
+  });
+}
+
+async function loadSavedPostsForFeed() {
+  if (!supabaseClient || !currentUser.id || currentUser.name === DEMO_ACCOUNT_NAME || posts.length === 0) return;
+  const postIds = posts.map(p => p.id);
+  const { data, error } = await supabaseClient.from('saved_posts').select('post_id').in('post_id', postIds).eq('user_id', currentUser.id);
+  if (error) { console.warn('[Hatch] loadSavedPostsForFeed:', error.message); return; }
+  const savedSet = new Set((data || []).map(r => r.post_id));
+  const svgFor = (filled) => `<svg width="15" height="15" viewBox="0 0 24 24" fill="${filled ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
+  posts.forEach(p => {
+    p.saved = savedSet.has(p.id);
+    const btn = document.getElementById('save-btn-' + p.id);
+    if (btn) { btn.classList.toggle('saved', p.saved); btn.innerHTML = svgFor(p.saved); }
+  });
+}
+
+async function loadSavedPostsForProfile() {
+  if (!supabaseClient || !currentUser.id || currentUser.name === DEMO_ACCOUNT_NAME) { renderProfileGallery(); return; }
+  const gallery = document.getElementById('profileGallery');
+  if (gallery) gallery.innerHTML = '<div class="empty-state" style="padding:40px 20px;text-align:center;color:var(--muted);">Loading…</div>';
+  const { data, error } = await supabaseClient
+    .from('saved_posts')
+    .select('post_id, saved_at, posts!saved_posts_post_id_fkey(id, caption, image_url, feed_type, visibility, created_at, profiles!posts_user_id_fkey(name, avatar_url))')
+    .eq('user_id', currentUser.id)
+    .order('saved_at', { ascending: false });
+  if (error) { console.warn('[Hatch] loadSavedPostsForProfile:', error.message); renderProfileGallery(); return; }
+  const savedPosts = (data || []).map(r => {
+    const p = r.posts; if (!p) return null;
+    const prof = p.profiles || {};
+    return {
+      id: p.id, user: prof.name || 'Someone', initial: (prof.name || 'S')[0].toUpperCase(),
+      avatar: prof.avatar_url || null, images: parseImageUrls(p.image_url), caption: p.caption || '',
+      likes: 0, liked: false, saved: true, comments: [],
+      time: new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+      feedType: p.feed_type || 'personal', audience: p.visibility || 'public',
+      taggedPeople: [], authStatus: 'real', aiDeclared: false,
+    };
+  }).filter(Boolean);
+  if (!gallery) return;
+  if (savedPosts.length === 0) { gallery.innerHTML = `<div class="empty-state" style="padding:40px 20px;text-align:center;color:var(--muted);">No saved posts yet ✦</div>`; return; }
+  if (profileViewMode === 'grid') {
+    gallery.innerHTML = `<div class="photo-grid">${savedPosts.map(p => {
+      const imgs = p.images || []; const img = imgs[0] || '';
+      const badge = imgs.length > 1 ? `<div class="carousel-badge">⧉ ${imgs.length}</div>` : '';
+      const isPulse = p.feedType === 'pulse';
+      const fallback = (!img || isPulse) ? `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--surface2);padding:10px;box-sizing:border-box;text-align:center;"><span style="font-size:0.72rem;color:var(--text);line-height:1.4;">${(p.caption||'').slice(0,60)}…</span></div>` : `<img src="${img}" alt="${p.caption||''}" loading="lazy" />`;
+      return `<div class="photo-grid-item" style="cursor:pointer;">${badge}${img && !isPulse ? `<img src="${img}" alt="${p.caption||''}" loading="lazy" />` : fallback}</div>`;
+    }).join('')}</div>`;
+  } else {
+    gallery.innerHTML = '';
+    savedPosts.forEach(p => { const card = buildPostCard(p); if (card) gallery.appendChild(card); });
+    setTimeout(() => { savedPosts.forEach(p => { if ((p.images||[]).length > 1) initCarouselSwipe(p.id); }); }, 80);
+  }
+}
+
 let profileContentTab = 'photos';
 
 function setProfileContentTab(tab, el) {
   profileContentTab = tab;
   document.querySelectorAll('.profile-content-tab').forEach(t => t.classList.remove('active'));
   if (el) el.classList.add('active');
-  renderProfileGallery();
+  if (tab === 'saved' && currentUser.name !== DEMO_ACCOUNT_NAME) {
+    loadSavedPostsForProfile();
+  } else {
+    renderProfileGallery();
+  }
 }
 
 function renderProfileGallery() {
@@ -7468,7 +7615,7 @@ function renderProfileGallery() {
       return `<div class="pulse-card">
         <div class="pulse-header">${avatarHtml}<div class="pulse-meta"><div class="pulse-author">${p.user}</div><div class="pulse-handle">@${p.user.toLowerCase().replace(/\s+/g,'_')}</div></div><div class="pulse-time">${p.time||'now'}</div></div>
         ${sourceTag}<div class="pulse-body">${p.caption||p.text||''}</div>
-        <div class="post-actions"><button class="like-btn ${p.liked ? 'liked' : ''}" onclick="toggleLike(${p.id})">${p.liked ? '♥' : '♡'} <span style="font-size:0.78rem;opacity:0.8;">${p.likes||0}</span></button><button class="comment-toggle" onclick="toggleComments(${p.id})">💬 <span style="font-size:0.78rem;opacity:0.8;">${(p.comments||[]).length}</span></button><div class="post-actions-right"><span class="post-time">${p.time||''}</span></div></div>
+        <div class="post-actions"><button class="like-btn ${p.liked ? 'liked' : ''}" onclick="toggleLike('${p.id}')">${p.liked ? '♥' : '♡'} <span style="font-size:0.78rem;opacity:0.8;">${p.likes||0}</span></button><button class="comment-toggle" onclick="toggleComments('${p.id}')">💬 <span style="font-size:0.78rem;opacity:0.8;">${(p.comments||[]).length}</span></button><div class="post-actions-right"><span class="post-time">${p.time||''}</span></div></div>
       </div>`;
     }).join('');
     return;
@@ -9770,6 +9917,8 @@ async function loadFeedFromSupabase() {
   });
   nextPostId = Date.now();
   renderFeed();
+  loadLikesForFeed();
+  loadSavedPostsForFeed();
 }
 
 function subscribeFeedRealtime(followedIds) {
