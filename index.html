@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/exifr/dist/full.umd.js" async defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js"></script>
 <style>
   :root {
     --bg: #f7f5f2;
@@ -2380,7 +2380,7 @@
         <div class="auth-or">or sign in with email</div>
         <input type="email" id="loginEmail" placeholder="Email address" style="margin-bottom:10px;" />
         <div class="auth-input-wrap">
-          <input type="password" id="loginPassword" placeholder="Password" id="loginPw" />
+          <input type="password" id="loginPassword" placeholder="Password" />
           <span class="auth-input-icon" onclick="togglePwVis('loginPassword')">👁</span>
         </div>
         <div style="text-align:right;margin:-4px 0 14px;">
@@ -8891,14 +8891,12 @@ function checkPwStrength(pw) {
 }
 
 // ── Quick login (Greta shortcut) ────────────
-async function quickLogin() {
-  const { error } = await supabaseClient.auth.signInWithPassword({
-    email:    DEMO_USER.email,
-    password: DEMO_USER.password,
-  });
-  // If Supabase login fails (e.g. demo account not in Supabase), fall back
-  // silently to demo mode — do NOT show an error toast, it looks like breakage
-  if (error) { enterApp(DEMO_USER, false); }
+function quickLogin() {
+  // Demo shortcut — enter demo mode directly without a Supabase round-trip.
+  // The greta@hatch.social account doesn't exist in this project, so trying
+  // signInWithPassword would always fail (and could throw if supabaseClient
+  // is null). Real user login uses the email/password form below.
+  enterApp(DEMO_USER, false);
 }
 
 // ── Email login ─────────────────────────────
@@ -8942,6 +8940,8 @@ async function doLogin() {
 
   if (!email) { authToast('Please enter your email address'); return; }
   if (!pw)    { authToast('Please enter your password'); return; }
+
+  if (!supabaseClient) { authToast('Connection error — please reload the page'); return; }
 
   const btn = document.querySelector('#authCard-login .btn-primary');
   if (btn) { btn.textContent = 'Signing in…'; btn.disabled = true; }
