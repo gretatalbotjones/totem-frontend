@@ -31,11 +31,13 @@ ALTER TABLE public.circles        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.circle_members ENABLE ROW LEVEL SECURITY;
 
 -- Circle owner has full control over their circles
+DROP POLICY IF EXISTS "circles: owner all" ON public.circles;
 CREATE POLICY "circles: owner all"
   ON public.circles FOR ALL
   USING (user_id = auth.uid());
 
 -- Circle members table: only the circle owner can manage entries
+DROP POLICY IF EXISTS "circle_members: owner all" ON public.circle_members;
 CREATE POLICY "circle_members: owner all"
   ON public.circle_members FOR ALL
   USING (

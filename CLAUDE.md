@@ -64,6 +64,9 @@ Target demographic: 25–40, UK-first, privacy-forward.
 - `007_diary_private_rls.sql` — RLS policy restricting diary post reads to owner only ⚠️ run in Supabase SQL editor
 - `008_follow_requests.sql` — follow_requests table with RLS (requester + target policies) ⚠️ run in Supabase SQL editor
 - `009_notifications.sql` — notifications table with RLS ⚠️ run in Supabase SQL editor
+- `010_follows_approve_policy.sql` — extends follows INSERT policy to allow `following_id = auth.uid()` (needed for approve flow) ⚠️ run in Supabase SQL editor
+- `016_fix_posts_visibility_check.sql` — drops and recreates posts_visibility_check to include 'private' (needed for diary posts) ⚠️ run in Supabase SQL editor
+- `017_circles.sql` — creates circles and circle_members tables with RLS for Trusted Circles feature
 
 ---
 

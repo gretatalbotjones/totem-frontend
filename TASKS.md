@@ -124,8 +124,7 @@ After completing each task, run a backup (see CLAUDE.md backup protocol).
 ---
 
 ### ~~P2-5~~ — Trusted Circles not persisted or created at onboarding ✅
-**Fixed:** Migration `017_circles.sql` creates `circles` (id, user_id, name, created_at) and `circle_members` (id, circle_id, member_id, created_at) tables with RLS. `loadCirclesFromSupabase()` queries the circles table on login and replaces `groupDefs` with real DB rows for non-demo users. `renderGroupChipsInPostModal()` re-renders the audience picker group chips from live `groupDefs` after any circles change. `addNewGroup()`, `deleteCurrentGroup()`, and `saveCurrentGroup()` all persist to Supabase for real users with demo fallbacks. Default "Family" and "Close Friends" circles are seeded for every new account in `finishRegistration()`. Group manager shows an empty-state prompt for real users (no contacts array yet — member management is wired to `circle_members` in a follow-up once followed users are loaded into contacts). ⚠️ Run migration `017_circles.sql` in Supabase SQL editor.
-
+**Fixed:** Migration `017_circles.sql` creates `circles` (id, user_id, name, created_at) and `circle_members` (id, circle_id, member_id, created_at) tables with RLS. `loadCirclesFromSupabase()` queries the circles table on login and replaces `groupDefs` with real DB rows for non-demo users. `renderGroupChipsInPostModal()` re-renders the audience picker group chips from live `groupDefs` after any circles change. `addNewGroup()`, `deleteCurrentGroup()`, and `saveCurrentGroup()` all persist to Supabase for real users with demo fallbacks. Default "Family" and "Close Friends" circles are seeded for every new account in `finishRegistration()`. Group manager shows an empty-state prompt for real users (no contacts array yet — member management is wired to `circle_members` in a follow-up once followed users are loaded into contacts).
 ---
 
 ### P2-6 — Feed not filtered by post audience
