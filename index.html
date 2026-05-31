@@ -4002,6 +4002,20 @@ if (supabaseClient) supabaseClient.auth.onAuthStateChange((event, session) => {
   }
 });
 
+// PKCE recovery flow: supabase-js v2 does not auto-exchange the ?code= param
+// when it comes from a password-reset email. Calling this fires PASSWORD_RECOVERY
+// via onAuthStateChange (handler registered above must exist first).
+if (supabaseClient) {
+  const _pkceCode = new URLSearchParams(window.location.search).get('code');
+  if (_pkceCode) {
+    console.log('[Hatch] PKCE code detected — calling exchangeCodeForSession');
+    supabaseClient.auth.exchangeCodeForSession(_pkceCode)
+      .then(({ data, error }) => {
+        console.log('[Hatch] exchangeCodeForSession result:', data?.session?.user?.email ?? null, error?.message ?? 'ok');
+      });
+  }
+}
+
 // ══════════════════════════════════════════
 //  DATA
 // ══════════════════════════════════════════
