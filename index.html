@@ -2501,6 +2501,23 @@
       <button class="btn btn-ghost" style="width:100%;" onclick="authGoto('authCard-start')">Back to sign in</button>
     </div>
 
+    <!-- ── CARD 6: Set new password (recovery flow) ── -->
+    <div class="auth-card" id="resetPasswordCard">
+      <div class="auth-card-title">Set new password</div>
+      <div class="auth-card-sub">Choose a new password for your account.</div>
+      <div class="auth-input-wrap">
+        <input type="password" id="newPasswordInput" placeholder="New password (min 8 characters)" />
+        <span class="auth-input-icon" onclick="togglePwVis('newPasswordInput')">👁</span>
+      </div>
+      <div class="auth-input-wrap" style="margin-top:10px;">
+        <input type="password" id="confirmPasswordInput" placeholder="Confirm new password" />
+        <span class="auth-input-icon" onclick="togglePwVis('confirmPasswordInput')">👁</span>
+      </div>
+      <button class="btn btn-primary" style="margin-top:16px;" onclick="submitNewPassword()">
+        Update password
+      </button>
+    </div>
+
   </div>
 </div>
 
@@ -3938,8 +3955,16 @@ try {
 }
 
 // Restore session on page load
+// Capture hash synchronously before supabase-js clears it on init
+const _isRecoveryFlow = window.location.hash.includes('type=recovery');
+
 if (supabaseClient) supabaseClient.auth.onAuthStateChange((event, session) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    showPasswordResetCard();
+    return;
+  }
   if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session) {
+    if (_isRecoveryFlow) return; // PASSWORD_RECOVERY event will handle this
     if (registrationInProgress) return; // wait until video verification is done
     const u = session.user;
     const name = u.user_metadata?.name;
@@ -8858,6 +8883,30 @@ function authGoto(cardId) {
   if (el) el.classList.add('active');
 }
 
+function showPasswordResetCard() {
+  const authScreen = document.getElementById('authScreen');
+  authScreen.style.display   = '';
+  authScreen.style.opacity   = '1';
+  authScreen.style.transform = '';
+  document.getElementById('appWrapper').classList.remove('visible');
+  authGoto('resetPasswordCard');
+}
+
+async function submitNewPassword() {
+  const pw      = document.getElementById('newPasswordInput').value;
+  const confirm = document.getElementById('confirmPasswordInput').value;
+  if (pw.length < 8)  { authToast('Password must be at least 8 characters'); return; }
+  if (pw !== confirm) { authToast('Passwords do not match'); return; }
+  const btn = document.querySelector('#resetPasswordCard .btn-primary');
+  if (btn) { btn.textContent = 'Updating…'; btn.disabled = true; }
+  const { error } = await supabaseClient.auth.updateUser({ password: pw });
+  if (btn) { btn.textContent = 'Update password'; btn.disabled = false; }
+  if (error) { authToast(error.message || 'Failed to update password'); return; }
+  await supabaseClient.auth.signOut();
+  showToast('Password updated — please sign in');
+  authGoto('authCard-start');
+}
+
 function authShowTab(tab) {
   document.getElementById('loginPanel').style.display    = tab === 'login'    ? 'block' : 'none';
   document.getElementById('registerPanel').style.display = tab === 'register' ? 'block' : 'none';
@@ -9226,7 +9275,7 @@ async function sendResetLink() {
   if (btn) { btn.textContent = 'Sending…'; btn.disabled = true; }
 
   const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.href.split('?')[0],
+    redirectTo: window.location.origin + window.location.pathname,
   });
 
   if (btn) { btn.textContent = 'Send reset link'; btn.disabled = false; }
