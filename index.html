@@ -3941,6 +3941,16 @@
 </div>
 
 <script>
+// ── Password recovery URL detection (runs before everything else) ──
+const _recoveryCode = new URLSearchParams(window.location.search).get('code');
+const _recoveryHash = window.location.hash.includes('type=recovery');
+console.log('[Hatch] recovery detection — code:', !!_recoveryCode, '| hash recovery:', _recoveryHash);
+if (_recoveryCode || _recoveryHash) {
+  document.addEventListener('DOMContentLoaded', function() {
+    authGoto('resetPasswordCard');
+  });
+}
+
 // ══════════════════════════════════════════
 //  SUPABASE CLIENT
 // ══════════════════════════════════════════
@@ -3956,22 +3966,16 @@ try {
 
 // Restore session on page load
 // Capture hash synchronously before supabase-js clears it on init
-// Cover both implicit flow (#type=recovery) and PKCE flow (?code= query param)
-const _isRecoveryFlow = window.location.hash.includes('type=recovery')
-                     || window.location.search.includes('type=recovery')
-                     || window.location.search.includes('code=');
-console.log('[Hatch] page load — hash:', window.location.hash, '| search:', window.location.search, '| _isRecoveryFlow:', _isRecoveryFlow);
+const _isRecoveryFlow = !!_recoveryCode || _recoveryHash;
 
 if (supabaseClient) supabaseClient.auth.onAuthStateChange((event, session) => {
-  console.log('[Hatch] onAuthStateChange:', event, '| session uid:', session?.user?.id ?? null);
   if (event === 'PASSWORD_RECOVERY') {
-    console.log('[Hatch] PASSWORD_RECOVERY — calling showPasswordResetCard()');
     _passwordRecoveryMode = true;
     showPasswordResetCard();
     return;
   }
   if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session) {
-    if (_isRecoveryFlow) { console.log('[Hatch] skipping enterApp — _isRecoveryFlow is true'); return; } // PASSWORD_RECOVERY event will handle this
+    if (_isRecoveryFlow) return; // recovery flow — submitNewPassword handles session
     if (registrationInProgress) return; // wait until video verification is done
     const u = session.user;
     const name = u.user_metadata?.name;
@@ -4002,19 +4006,6 @@ if (supabaseClient) supabaseClient.auth.onAuthStateChange((event, session) => {
   }
 });
 
-// PKCE recovery flow: supabase-js v2 does not auto-exchange the ?code= param
-// when it comes from a password-reset email. Calling this fires PASSWORD_RECOVERY
-// via onAuthStateChange (handler registered above must exist first).
-if (supabaseClient) {
-  const _pkceCode = new URLSearchParams(window.location.search).get('code');
-  if (_pkceCode) {
-    console.log('[Hatch] PKCE code detected — calling exchangeCodeForSession');
-    supabaseClient.auth.exchangeCodeForSession(_pkceCode)
-      .then(({ data, error }) => {
-        console.log('[Hatch] exchangeCodeForSession result:', data?.session?.user?.email ?? null, error?.message ?? 'ok');
-      });
-  }
-}
 
 // ══════════════════════════════════════════
 //  DATA
@@ -8921,6 +8912,14 @@ async function submitNewPassword() {
   if (pw !== confirm) { authToast('Passwords do not match'); return; }
   const btn = document.querySelector('#resetPasswordCard .btn-primary');
   if (btn) { btn.textContent = 'Updating…'; btn.disabled = true; }
+  if (_recoveryCode) {
+    const { error: exchErr } = await supabaseClient.auth.exchangeCodeForSession(_recoveryCode);
+    if (exchErr) {
+      if (btn) { btn.textContent = 'Update password'; btn.disabled = false; }
+      authToast(exchErr.message || 'Session expired — please request a new reset link');
+      return;
+    }
+  }
   const { error } = await supabaseClient.auth.updateUser({ password: pw });
   if (btn) { btn.textContent = 'Update password'; btn.disabled = false; }
   if (error) { authToast(error.message || 'Failed to update password'); return; }
@@ -9315,7 +9314,7 @@ async function sendResetLink() {
 
 // ── Enter the app ────────────────────────────
 function enterApp(user, newUser, welcomeMsg) {
-  if (_passwordRecoveryMode) { console.log('[Hatch] enterApp() blocked — _passwordRecoveryMode is true'); return; }
+  if (_passwordRecoveryMode) return;
   // Update global currentUser
   const isDemoAccount = user.name === DEMO_ACCOUNT_NAME || user.email === DEMO_ACCOUNT_EMAIL;
   currentUser.name    = isDemoAccount ? DEMO_ACCOUNT_NAME : user.name;
