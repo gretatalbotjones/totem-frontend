@@ -28,7 +28,7 @@ Target demographic: 25–40, UK-first, privacy-forward.
 |---|---|
 | Frontend | Single HTML file (`index.html`) — vanilla JS, inline CSS |
 | Backend | Supabase (auth + database + storage) |
-| Hosting | Vercel |
+| Hosting | Vercel — https://totem-frontend-five.vercel.app/ |
 | Future migration | Next.js + Supabase (planned post-MVP) |
 
 **The single HTML file is a prototype. It will be migrated to Next.js after Phase 1 MVP is complete. Do not restructure it into multiple files — make targeted edits only.**
