@@ -3956,15 +3956,22 @@ try {
 
 // Restore session on page load
 // Capture hash synchronously before supabase-js clears it on init
-const _isRecoveryFlow = window.location.hash.includes('type=recovery');
+// Cover both implicit flow (#type=recovery) and PKCE flow (?code= query param)
+const _isRecoveryFlow = window.location.hash.includes('type=recovery')
+                     || window.location.search.includes('type=recovery')
+                     || window.location.search.includes('code=');
+console.log('[Hatch] page load — hash:', window.location.hash, '| search:', window.location.search, '| _isRecoveryFlow:', _isRecoveryFlow);
 
 if (supabaseClient) supabaseClient.auth.onAuthStateChange((event, session) => {
+  console.log('[Hatch] onAuthStateChange:', event, '| session uid:', session?.user?.id ?? null);
   if (event === 'PASSWORD_RECOVERY') {
+    console.log('[Hatch] PASSWORD_RECOVERY — calling showPasswordResetCard()');
+    _passwordRecoveryMode = true;
     showPasswordResetCard();
     return;
   }
   if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session) {
-    if (_isRecoveryFlow) return; // PASSWORD_RECOVERY event will handle this
+    if (_isRecoveryFlow) { console.log('[Hatch] skipping enterApp — _isRecoveryFlow is true'); return; } // PASSWORD_RECOVERY event will handle this
     if (registrationInProgress) return; // wait until video verification is done
     const u = session.user;
     const name = u.user_metadata?.name;
@@ -8875,6 +8882,7 @@ let pendingReg = {};   // holds data during multi-step registration
 let isNewUser = false; // flag — shows pending-verify banner in app
 let registrationInProgress = false; // block onAuthStateChange during video verification
 let _pendingNewUserMsg = null;       // welcome message to show after Supabase sign-in
+let _passwordRecoveryMode  = false;  // prevents enterApp() during a password recovery flow
 
 // ── UI helpers ──────────────────────────────
 function authGoto(cardId) {
@@ -9293,6 +9301,7 @@ async function sendResetLink() {
 
 // ── Enter the app ────────────────────────────
 function enterApp(user, newUser, welcomeMsg) {
+  if (_passwordRecoveryMode) { console.log('[Hatch] enterApp() blocked — _passwordRecoveryMode is true'); return; }
   // Update global currentUser
   const isDemoAccount = user.name === DEMO_ACCOUNT_NAME || user.email === DEMO_ACCOUNT_EMAIL;
   currentUser.name    = isDemoAccount ? DEMO_ACCOUNT_NAME : user.name;
