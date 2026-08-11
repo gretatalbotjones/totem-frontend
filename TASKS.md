@@ -142,10 +142,8 @@ After completing each task, run a backup (see CLAUDE.md backup protocol).
 
 ---
 
-### P2-6 — Feed not filtered by post audience
-**What:** `loadFeedFromSupabase()` returns all posts from followed users regardless of visibility setting.
-**Fix:** Filter feed query to exclude posts where `visibility = 'friends'` unless the viewer is in the poster's circles. Depends on P2-5 circles table being in place.
-**Effort:** Medium
+### ~~P2-6~~ — Feed not filtered by post audience ✅
+**Fixed:** Migration `018_circle_member_lookup.sql` creates a `SECURITY DEFINER` RPC `get_circle_owners_for_member(member_uuid)` that returns the user_ids of all circle owners who have added the caller to one of their circles — bypassing the RLS policy that restricts `circle_members` reads to the circle owner only (a direct query would always return empty for the viewer). `loadFeedFromSupabase()` now calls this RPC after resolving followedIds and builds `_feedInCircleOf` (module-level Set). Posts query adds `user_id` to the SELECT (also fixes the latent UI-06 userId bug). Feed rows are client-side filtered: `visibility !== 'friends' || _feedInCircleOf.has(p.user_id)`. The realtime subscription handler applies the same guard on incoming INSERT events. ⚠️ Run migration `018_circle_member_lookup.sql` in Supabase SQL editor.
 
 ---
 

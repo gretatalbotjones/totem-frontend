@@ -4703,6 +4703,7 @@ let posts = [
 
 let nextPostId = 50;
 let _feedRealtimeChannel = null;
+let _feedInCircleOf = new Set();
 
 let events = [
   { id: 1, host: "Melissa Lawford", hostInitial: "M", title: "Gallery Opening Night", emoji: "🎨", desc: "Drinks and canapés from 7pm. Come celebrate!", date: "2026-03-15", time: "19:00", endTime: "21:30", location: "Tate Modern, London", invitees: [{ name: "Greta Talbot-Jones", initial: "G", rsvp: "pending" }, { name: "Jack Farrant", initial: "J", rsvp: "going" }, { name: "Felix Nugee", initial: "F", rsvp: "maybe" }] },
@@ -9958,6 +9959,20 @@ async function loadFeedFromSupabase() {
 
   const followedIds = (followData || []).map(f => f.following_id);
   posts.length = 0;
+
+  // Discover which followed users have added the current user to one of their circles.
+  // Uses a SECURITY DEFINER RPC (018_circle_member_lookup.sql) to bypass the RLS
+  // policy that restricts circle_members reads to the circle owner only.
+  _feedInCircleOf = new Set();
+  if (followedIds.length > 0) {
+    const { data: circleOwners } = await supabaseClient
+      .rpc('get_circle_owners_for_member', { member_uuid: currentUser.id });
+    const followedSet = new Set(followedIds);
+    (circleOwners || []).forEach(row => {
+      if (row.owner_id && followedSet.has(row.owner_id)) _feedInCircleOf.add(row.owner_id);
+    });
+  }
+
   subscribeFeedRealtime(followedIds);
 
   if (followedIds.length === 0) {
@@ -9969,25 +9984,27 @@ async function loadFeedFromSupabase() {
 
   const { data, error } = await supabaseClient
     .from('posts')
-    .select('id, caption, image_url, feed_type, visibility, created_at, profiles!posts_user_id_fkey(name, avatar_url)')
+    .select('id, user_id, caption, image_url, feed_type, visibility, created_at, profiles!posts_user_id_fkey(name, avatar_url)')
     .in('user_id', followedIds)
     .neq('feed_type', 'diary')
     .order('created_at', { ascending: false })
-    .limit(50);
+    .limit(60);
   if (error) { console.warn('[Totem] feed load failed:', error.message); return; }
-  (data || []).forEach(p => {
-    const prof = p.profiles || {};
-    const authorName = prof.name || 'Someone';
-    posts.push({
-      id: p.id, userId: p.user_id, user: authorName, initial: authorName[0].toUpperCase(), avatar: prof.avatar_url || null,
-      images: parseImageUrls(p.image_url), caption: p.caption || '',
-      likes: 0, liked: false, comments: [],
-      time: new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-      feedType: p.feed_type || 'personal', audience: p.visibility || 'public',
-      audienceLabel: p.visibility || 'everyone', taggedPeople: [],
-      authStatus: 'real', aiDeclared: false,
+  (data || [])
+    .filter(p => p.visibility !== 'friends' || _feedInCircleOf.has(p.user_id))
+    .forEach(p => {
+      const prof = p.profiles || {};
+      const authorName = prof.name || 'Someone';
+      posts.push({
+        id: p.id, userId: p.user_id, user: authorName, initial: authorName[0].toUpperCase(), avatar: prof.avatar_url || null,
+        images: parseImageUrls(p.image_url), caption: p.caption || '',
+        likes: 0, liked: false, comments: [],
+        time: new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+        feedType: p.feed_type || 'personal', audience: p.visibility || 'public',
+        audienceLabel: p.visibility || 'everyone', taggedPeople: [],
+        authStatus: 'real', aiDeclared: false,
+      });
     });
-  });
   nextPostId = Date.now();
   renderFeed();
   loadLikesForFeed();
@@ -10013,6 +10030,7 @@ function subscribeFeedRealtime(followedIds) {
       async (payload) => {
         const p = payload.new;
         if (!p || p.feed_type === 'diary') return;
+        if (p.visibility === 'friends' && !_feedInCircleOf.has(p.user_id)) return;
         const { data: prof } = await supabaseClient
           .from('profiles').select('name, avatar_url').eq('id', p.user_id).single();
         const authorName = prof?.name || 'Someone';

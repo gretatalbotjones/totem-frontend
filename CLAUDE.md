@@ -67,6 +67,7 @@ Target demographic: 25–40, UK-first, privacy-forward.
 - `010_follows_approve_policy.sql` — extends follows INSERT policy to allow `following_id = auth.uid()` (needed for approve flow) ⚠️ run in Supabase SQL editor
 - `016_fix_posts_visibility_check.sql` — drops and recreates posts_visibility_check to include 'private' (needed for diary posts) ⚠️ run in Supabase SQL editor
 - `017_circles.sql` — creates circles and circle_members tables with RLS for Trusted Circles feature
+- `018_circle_member_lookup.sql` — SECURITY DEFINER RPC `get_circle_owners_for_member(uuid)` so viewers can check which posters include them in a circle (feeds P2-6 audience filter) ⚠️ run in Supabase SQL editor
 
 ---
 
