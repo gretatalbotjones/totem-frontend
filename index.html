@@ -9744,8 +9744,7 @@ function renderGroupMemberList(filter) {
   const filtered = filter
     ? scored.filter(c => c.name.toLowerCase().includes(filter.toLowerCase()))
     : scored;
-  
-  const container = document.getElementById('groupMemberList');
+
   container.innerHTML = filtered.map(c => {
     const hintText = c.isMember ? '' : (c.suggestion >= 2 ? '✦ Suggested' : '');
     const hintClass = c.suggestion >= 2 ? 'suggestion' : 'neutral';
