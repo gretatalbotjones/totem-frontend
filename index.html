@@ -4705,6 +4705,7 @@ let posts = [
 let nextPostId = 50;
 let _feedRealtimeChannel = null;
 let _feedInCircleOf = new Set();
+let _followedIds = [];
 
 let events = [
   { id: 1, host: "Melissa Lawford", hostInitial: "M", title: "Gallery Opening Night", emoji: "🎨", desc: "Drinks and canapés from 7pm. Come celebrate!", date: "2026-03-15", time: "19:00", endTime: "21:30", location: "Tate Modern, London", invitees: [{ name: "Greta Talbot-Jones", initial: "G", rsvp: "pending" }, { name: "Jack Farrant", initial: "J", rsvp: "going" }, { name: "Felix Nugee", initial: "F", rsvp: "maybe" }] },
@@ -5517,12 +5518,20 @@ async function fetchLiveNews() {
     if (liveNewsFetched) { renderFeed(); return; }
     if (!supabaseClient || !currentUser.id) return;
 
+    const followedOutletIds = [BBC_NEWS_ID, GUARDIAN_ID].filter(id => _followedIds.includes(id));
+    if (followedOutletIds.length === 0) {
+      if (emptyMsg) { emptyMsg.textContent = 'Follow BBC News or The Guardian to see news here ✦'; emptyMsg.style.display = 'block'; }
+      document.querySelectorAll('.post-card').forEach(c => c.style.display = 'none');
+      liveNewsFetched = true;
+      return;
+    }
+
     if (emptyMsg) { emptyMsg.textContent = 'Loading news…'; emptyMsg.style.display = 'block'; }
 
     const { data, error } = await supabaseClient
       .from('posts')
       .select('id, user_id, caption, image_url, external_url, created_at, profiles!posts_user_id_fkey(name, avatar_url)')
-      .in('user_id', [BBC_NEWS_ID, GUARDIAN_ID])
+      .in('user_id', followedOutletIds)
       .eq('feed_type', 'news')
       .eq('visibility', 'public')
       .order('created_at', { ascending: false })
@@ -10046,6 +10055,7 @@ async function loadFeedFromSupabase() {
     .eq('follower_id', currentUser.id);
 
   const followedIds = (followData || []).map(f => f.following_id);
+  _followedIds = followedIds;
   posts.length = 0;
 
   // Discover which followed users have added the current user to one of their circles.
