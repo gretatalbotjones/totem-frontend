@@ -175,47 +175,23 @@ After completing each task, run a backup (see CLAUDE.md backup protocol).
 
 ---
 
-### FEATURE-01 — Pulse post creation
-**What:** The create menu currently has diary, post, event and coordinate. Replace coordinate with Pulse post. A Pulse post is text-only, 150 character limit, appears in the Pulse feed of followers (`feed_type = 'pulse'`).
-**Fix:**
-1. Replace the coordinate option in the create menu with Pulse post
-2. Create a Pulse post modal with: text input with 150 character counter, no image upload, audience picker (Everyone / Circles), Post button
-3. On submit: insert into posts table with `feed_type = 'pulse'`, visibility from audience picker
-4. Pulse posts appear in the Pulse sub-nav feed of followers, not in Personal feed
-5. Comments are critical for Pulse posts — ensure SOCIAL-01 comment fix covers Pulse posts as well as photo posts
-**Effort:** Medium
+### ~~FEATURE-01~~ — Pulse post creation ✅
+**Fixed:** Replaced 4th speed dial item (availability/coordinate) with a Pulse button (waveform icon, `openPulseModal()`). Added `#pulsePostModal` with a 150-char textarea, live character counter (`updatePulseCounter()`), audience picker (Everyone=public / Circles=friends), and Post button. `_pulseAudience` module-level variable tracks selection. `submitPulsePost()` validates length, optimistically adds to `posts` array and re-renders, inserts to Supabase with `feed_type:'pulse'`, updates the in-memory post ID on success. Comments already work on Pulse posts from SOCIAL-01. Availability poll still accessible via the event creation modal.
 
 ---
 
-### PERF-01 — General loading performance is slow
-**What:** The app takes a long time to load content across multiple screens.
-**Fix:**
-1. Check whether Supabase queries are running sequentially when they could run in parallel (`Promise.all`)
-2. Check whether `loadFeedFromSupabase()` is fetching more data than needed — add a LIMIT if not already present
-3. Add skeleton loading states so the UI feels responsive while data loads rather than showing blank screens
-4. Check whether the Supabase project is on a free tier plan that may be causing cold start delays
-**Effort:** Medium
+### ~~PERF-01~~ — General loading performance ✅
+**Fixed:** Two changes: (1) In `loadFeedFromSupabase()`, the circles RPC and posts query now run in parallel via `Promise.all` — previously they were sequential, adding a full round-trip before the feed appeared. (2) Added `showFeedSkeleton()` which injects 3 shimmer-animated placeholder cards into the feed immediately on login, replaced by real content when `renderFeed()` fires — eliminates the blank-screen gap. LIMIT was already 60. Supabase project is on free tier — cold-start latency is expected on first request after inactivity; no code fix possible for that.
 
 ---
 
-### UI-11 — Profile picture not consistent across the app
-**What:** Profile picture should appear in three places and stay in sync when updated: (1) own profile page header, (2) next to the user's name below their posts in the feed, (3) in the diary circle at the top left of the feed strip. When a user updates their avatar, all three should reflect the change immediately.
-**Fix:**
-1. Audit where `currentUser.avatar` is read to render the profile picture in each of the three locations
-2. Ensure all three reference the same source — `currentUser.avatar` updated from Supabase on login and on avatar change
-3. After a successful avatar upload, update `currentUser.avatar` in memory and re-render all three locations
-**Effort:** Small
+### ~~UI-11~~ — Profile picture not consistent across the app ✅
+**Fixed:** After a successful avatar upload, `uploadAvatarFile()` now also updates: (1) `#yourDiaryAvatar` (diary circle, was missing), and (2) any already-rendered feed cards for the user's own posts (updates `p.avatar` in-memory and swaps the `<img>` src in the DOM). Profile header (`#profilePic`) and `buildPostCard()` already referenced `currentUser.avatar` — no change needed there.
 
 ---
 
-### UI-12 — Event invite search not working for private events
-**What:** When creating an event with invite-only visibility, a search bar appears to find friends to invite but the search returns no results.
-**Fix:**
-1. Find the event invite search function
-2. Check whether it queries the `profiles` table or `follows` table — it should search followed users first
-3. Fix the query so it returns matching profiles from the `follows` table (people the user actually knows)
-4. Selecting a user from results should add them to the invite list and insert into `event_invites` on event save
-**Effort:** Medium
+### ~~UI-12~~ — Event invite search not working for private events ✅
+**Fixed:** `loadFollowersForPicker()` was already querying the `follows` table correctly. The missing piece was a search/filter UI. Added a live search input (`#inviteSearch`) above `#inviteCheckboxes` that calls `filterInviteList()` on each keystroke — shows/hides checkbox labels by name match. Input is cleared each time `openCreateEventModal()` is called. Selecting a checkbox adds the person to the invite list; the existing `submitNewEvent()` picks up all checked inputs.
 
 ---
 

@@ -1331,6 +1331,12 @@
   .pulse-action:hover { color: var(--accent); }
   .pulse-source-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 600; color: var(--accent2); letter-spacing: 0.3px; text-transform: uppercase; margin-bottom: 6px; }
   .news-read-link { display: inline-block; margin: 6px 0 2px; font-size: 0.78rem; font-weight: 600; color: var(--accent); text-decoration: none; }
+  @keyframes shimmer { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
+  .skeleton-card { background:var(--surface2);border-radius:14px;margin-bottom:14px;overflow:hidden;padding:0; }
+  .skeleton-line { background:linear-gradient(90deg,var(--border) 25%,var(--surface2) 50%,var(--border) 75%);background-size:400px 100%;animation:shimmer 1.4s infinite;border-radius:6px; }
+  .skeleton-img  { height:220px; }
+  .skeleton-text { height:12px;margin:14px 16px 6px; }
+  .skeleton-text.short { width:55%;margin-bottom:14px; }
 
   /* ── EVENTS ── */
   .event-card {
@@ -3026,10 +3032,33 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
     </div>
   </div>
-  <div class="create-menu-item" onclick="openAvailabilityModal()">
+  <div class="create-menu-item" onclick="openPulseModal()">
     <div class="create-menu-btn">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
     </div>
+  </div>
+</div>
+
+<!-- ══ PULSE POST MODAL ══ -->
+<div class="modal-overlay" id="pulsePostModal" onclick="closeModalByOverlay(event,'pulsePostModal')">
+  <div class="modal-sheet" style="padding-bottom:80px;">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">⚡ Pulse Post</span>
+      <button class="modal-close" onclick="closeModal('pulsePostModal')">✕</button>
+    </div>
+    <textarea id="pulsePostText" placeholder="What's happening? (150 characters max)" maxlength="150"
+      style="width:100%;min-height:100px;resize:none;border:1px solid var(--border);border-radius:10px;padding:12px;font-size:0.93rem;font-family:inherit;background:var(--surface2);color:var(--text);box-sizing:border-box;"
+      oninput="updatePulseCounter()"></textarea>
+    <div style="text-align:right;font-size:0.75rem;color:var(--muted);margin-top:4px;margin-bottom:14px;">
+      <span id="pulseCharCount">0</span>/150
+    </div>
+    <div style="font-size:0.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Audience</div>
+    <div style="display:flex;gap:8px;margin-bottom:20px;">
+      <div class="audience-chip active" id="pulseAudEveryone" onclick="setPulseAudience('public',this)">🌐 Everyone</div>
+      <div class="audience-chip" id="pulseAudCircles" onclick="setPulseAudience('friends',this)">👥 Circles</div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;" onclick="submitPulsePost()">Post</button>
   </div>
 </div>
 
@@ -3625,6 +3654,8 @@
 
     <div id="inviteSection" style="display:none;margin-bottom:10px;">
       <div style="font-size:0.82rem; color:var(--muted); margin-bottom:6px;">Invite people</div>
+      <input type="text" id="inviteSearch" placeholder="Search friends…" oninput="filterInviteList(this.value)"
+        style="width:100%;margin-bottom:8px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.85rem;background:var(--surface2);color:var(--text);box-sizing:border-box;" />
       <div id="inviteCheckboxes"></div>
     </div>
 
@@ -5030,6 +5061,60 @@ function openPostChoiceModal() {
   toggleCreateMenu();
 }
 
+let _pulseAudience = 'public';
+
+function openPulseModal() {
+  closeCreateMenu();
+  _pulseAudience = 'public';
+  document.getElementById('pulsePostText').value = '';
+  document.getElementById('pulseCharCount').textContent = '0';
+  document.getElementById('pulseAudEveryone').classList.add('active');
+  document.getElementById('pulseAudCircles').classList.remove('active');
+  openModal('pulsePostModal');
+}
+
+function updatePulseCounter() {
+  const len = (document.getElementById('pulsePostText').value || '').length;
+  const el = document.getElementById('pulseCharCount');
+  if (el) { el.textContent = len; el.style.color = len >= 140 ? 'var(--accent2)' : 'var(--muted)'; }
+}
+
+function setPulseAudience(vis, el) {
+  _pulseAudience = vis;
+  document.querySelectorAll('#pulsePostModal .audience-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+async function submitPulsePost() {
+  const text = (document.getElementById('pulsePostText').value || '').trim();
+  if (!text) { showToast('Write something first ✦'); return; }
+  if (text.length > 150) { showToast('Keep it under 150 characters ✦'); return; }
+
+  const newPost = {
+    id: Date.now(), user: currentUser.name, initial: currentUser.initial,
+    avatar: currentUser.avatar || null, images: [], caption: text,
+    likes: 0, liked: false, comments: [],
+    time: 'just now', feedType: 'pulse',
+    audience: _pulseAudience === 'public' ? 'everyone' : 'groups',
+    authStatus: 'real', aiDeclared: false,
+  };
+  posts.unshift(newPost);
+  renderFeed();
+  closeModal('pulsePostModal');
+  showToast('Pulse posted ✦');
+
+  if (supabaseClient && currentUser.id && currentUser.name !== DEMO_ACCOUNT_NAME) {
+    const { data, error } = await supabaseClient.from('posts').insert({
+      user_id:    currentUser.id,
+      caption:    text,
+      feed_type:  'pulse',
+      visibility: _pulseAudience,
+    }).select('id').single();
+    if (error) { console.warn('[Hatch] pulse post failed:', error.message); }
+    else if (data) { newPost.id = data.id; }
+  }
+}
+
 function openPostModal() {
   closeCreateMenu();
   // Reset form
@@ -5054,6 +5139,8 @@ function openPostModal() {
 
 function openCreateEventModal() {
   closeCreateMenu();
+  const invSrch = document.getElementById('inviteSearch');
+  if (invSrch) invSrch.value = '';
   if (currentUser.name === DEMO_ACCOUNT_NAME) {
     buildInviteCheckboxes();
   } else {
@@ -9559,6 +9646,15 @@ async function uploadAvatarFile(file) {
   currentUser.avatar = publicUrl;
   const picEl = document.getElementById('profilePic');
   if (picEl) picEl.innerHTML = `<img src="${publicUrl}" alt="${currentUser.name}" />`;
+  // Sync diary circle
+  const diaryEl = document.getElementById('yourDiaryAvatar');
+  if (diaryEl) diaryEl.innerHTML = `<img src="${publicUrl}" alt="${currentUser.name}" />`;
+  // Sync own-post avatars already rendered in the feed
+  posts.filter(p => p.user === currentUser.name).forEach(p => {
+    p.avatar = publicUrl;
+    const card = document.getElementById('post-' + p.id);
+    if (card) { const av = card.querySelector('.post-avatar img, .post-avatar'); if (av && av.tagName === 'IMG') av.src = publicUrl; }
+  });
   try {
     await supabaseClient.from('profiles').update({ avatar_url: publicUrl }).eq('id', currentUser.id);
     console.log('[Fix 5] avatar_url saved to profiles table:', publicUrl);
@@ -10046,8 +10142,16 @@ function parseImageUrls(raw) {
   return [raw];
 }
 
+function showFeedSkeleton() {
+  const feed = document.getElementById('feed');
+  if (!feed) return;
+  const card = () => `<div class="skeleton-card"><div class="skeleton-line skeleton-img"></div><div class="skeleton-line skeleton-text"></div><div class="skeleton-line skeleton-text short"></div></div>`;
+  feed.innerHTML = card() + card() + card();
+}
+
 async function loadFeedFromSupabase() {
   if (!supabaseClient || !currentUser.id) return;
+  showFeedSkeleton();
 
   const { data: followData } = await supabaseClient
     .from('follows')
@@ -10058,19 +10162,6 @@ async function loadFeedFromSupabase() {
   _followedIds = followedIds;
   posts.length = 0;
 
-  // Discover which followed users have added the current user to one of their circles.
-  // Uses a SECURITY DEFINER RPC (018_circle_member_lookup.sql) to bypass the RLS
-  // policy that restricts circle_members reads to the circle owner only.
-  _feedInCircleOf = new Set();
-  if (followedIds.length > 0) {
-    const { data: circleOwners } = await supabaseClient
-      .rpc('get_circle_owners_for_member', { member_uuid: currentUser.id });
-    const followedSet = new Set(followedIds);
-    (circleOwners || []).forEach(row => {
-      if (row.owner_id && followedSet.has(row.owner_id)) _feedInCircleOf.add(row.owner_id);
-    });
-  }
-
   subscribeFeedRealtime(followedIds);
 
   if (followedIds.length === 0) {
@@ -10080,13 +10171,23 @@ async function loadFeedFromSupabase() {
     return;
   }
 
-  const { data, error } = await supabaseClient
-    .from('posts')
-    .select('id, user_id, caption, image_url, feed_type, visibility, created_at, profiles!posts_user_id_fkey(name, avatar_url)')
-    .in('user_id', followedIds)
-    .neq('feed_type', 'diary')
-    .order('created_at', { ascending: false })
-    .limit(60);
+  // Run circles RPC and posts query in parallel — both only need followedIds
+  _feedInCircleOf = new Set();
+  const followedSet = new Set(followedIds);
+  const [circleRes, feedRes] = await Promise.all([
+    supabaseClient.rpc('get_circle_owners_for_member', { member_uuid: currentUser.id }),
+    supabaseClient
+      .from('posts')
+      .select('id, user_id, caption, image_url, feed_type, visibility, created_at, profiles!posts_user_id_fkey(name, avatar_url)')
+      .in('user_id', followedIds)
+      .neq('feed_type', 'diary')
+      .order('created_at', { ascending: false })
+      .limit(60),
+  ]);
+  (circleRes.data || []).forEach(row => {
+    if (row.owner_id && followedSet.has(row.owner_id)) _feedInCircleOf.add(row.owner_id);
+  });
+  const { data, error } = feedRes;
   if (error) { console.warn('[Totem] feed load failed:', error.message); return; }
   (data || [])
     .filter(p => p.visibility !== 'friends' || _feedInCircleOf.has(p.user_id))
@@ -10175,6 +10276,14 @@ async function loadEventsFromSupabase() {
 }
 
 // ── Follower picker (for event invite-only) ──
+
+function filterInviteList(q) {
+  const labels = document.querySelectorAll('#inviteCheckboxes label');
+  const lq = q.toLowerCase();
+  labels.forEach(lbl => {
+    lbl.style.display = lbl.textContent.toLowerCase().includes(lq) ? '' : 'none';
+  });
+}
 
 async function loadFollowersForPicker() {
   const container = document.getElementById('inviteCheckboxes');
