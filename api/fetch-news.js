@@ -135,7 +135,7 @@ async function insertPost(supabaseUrl, serviceKey, row) {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Verify the Vercel cron secret so random callers can't trigger ingestion
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret) {
