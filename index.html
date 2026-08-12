@@ -3603,11 +3603,11 @@
     <textarea id="eventDesc" placeholder="What's this event about?" style="min-height:55px;"></textarea>
     <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <input type="date" id="eventDate" />
-      <input type="time" id="eventTime" />
+      <input type="time" id="eventTime" step="300" />
     </div>
     <div class="form-row" style="display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center;margin-bottom:12px;">
       <span style="font-size:0.8rem;color:var(--muted);white-space:nowrap;">Ends at</span>
-      <input type="time" id="eventEndTime" />
+      <input type="time" id="eventEndTime" step="300" />
     </div>
     <input type="text" id="eventLocation" placeholder="📍 Location or link" />
 
@@ -4814,6 +4814,14 @@ function switchTabByName(name) {
     notifications.forEach(n => n.unread = false);
     document.getElementById('alertNavBadge').style.display = 'none';
     renderNotifs();
+    if (supabaseClient && currentUser.id && currentUser.name !== DEMO_ACCOUNT_NAME) {
+      loadNotificationsFromSupabase();
+      supabaseClient.from('notifications')
+        .update({ read: true })
+        .eq('user_id', currentUser.id)
+        .eq('read', false)
+        .then(({ error }) => { if (error) console.warn('[Hatch] mark notifications read:', error.message); });
+    }
   }
 }
 
@@ -6247,8 +6255,9 @@ async function submitNewEvent() {
   const title    = document.getElementById('eventTitle').value.trim();
   const desc     = document.getElementById('eventDesc').value.trim();
   const date     = document.getElementById('eventDate').value;
-  const time     = document.getElementById('eventTime').value;
-  const endTime  = document.getElementById('eventEndTime').value;
+  const snapMin = t => { if (!t) return t; const [h, m] = t.split(':').map(Number); const s = Math.round(m / 5) * 5; return s === 60 ? `${String((h+1)%24).padStart(2,'0')}:00` : `${String(h).padStart(2,'0')}:${String(s).padStart(2,'0')}`; };
+  const time     = snapMin(document.getElementById('eventTime').value);
+  const endTime  = snapMin(document.getElementById('eventEndTime').value);
   const location = document.getElementById('eventLocation').value.trim();
   if (!title) { alert('Please give your event a name!'); return; }
 
@@ -6270,7 +6279,7 @@ async function submitNewEvent() {
     invitees, visibility: eventPrivacy,
   });
 
-  if (invitees.length > 0) {
+  if (invitees.length > 0 && currentUser.name === DEMO_ACCOUNT_NAME) {
     notifications.unshift({ id: Date.now(), icon:'📅', text:`You invited <strong>${invitees.map(i=>i.name).join(', ')}</strong> to <strong>${title}</strong>.`, time:'just now', unread: false });
     updateNotifBadge();
   }
@@ -6297,10 +6306,21 @@ async function submitNewEvent() {
     } else {
       console.log('[Fix 1] createEvent saved OK, row id:', evRow?.id);
       if (evRow && eventPrivacy === 'invite') {
-        const rows = invitees.filter(i => i._profileId).map(i => ({ event_id: evRow.id, invitee_id: i._profileId, rsvp: 'pending' }));
-        if (rows.length > 0) {
-          const { error: invErr } = await supabaseClient.from('event_invites').insert(rows);
+        const invitableRows = invitees.filter(i => i._profileId);
+        if (invitableRows.length > 0) {
+          const { error: invErr } = await supabaseClient.from('event_invites').insert(
+            invitableRows.map(i => ({ event_id: evRow.id, invitee_id: i._profileId, rsvp: 'pending' }))
+          );
           if (invErr) console.warn('[Fix 1] event_invites insert failed:', invErr.message);
+          // Notify each invitee
+          const notifRows = invitableRows.map(i => ({
+            user_id:  i._profileId,
+            type:     'event_invite',
+            actor_id: currentUser.id,
+            text:     `<strong>${currentUser.name}</strong> invited you to <strong>${title}</strong>.`,
+          }));
+          const { error: nErr } = await supabaseClient.from('notifications').insert(notifRows);
+          if (nErr) console.warn('[Hatch] event invite notifications failed:', nErr.message);
         }
       }
     }
@@ -6385,7 +6405,8 @@ function renderEvents() {
 
 const DAY_NAMES   = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-let calYear = 2026, calMonth = 2, calSelectedDate = null;
+const _calNow = new Date();
+let calYear = _calNow.getFullYear(), calMonth = _calNow.getMonth(), calSelectedDate = null;
 
 function calPrev() {
   if (calViewMode === 'week') { calWeekStart = new Date(calWeekStart); calWeekStart.setDate(calWeekStart.getDate() - 7); }

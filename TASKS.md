@@ -167,15 +167,11 @@ After completing each task, run a backup (see CLAUDE.md backup protocol).
 
 ---
 
-### P2-8 — Notifications not persisted to Supabase
-**What:** Notifications are created in a client-side array (`notifications.unshift()`) and reset to demo data or empty on every login. No `notifications` table exists. This becomes critical once P2-4 (follow requests) is implemented — users must be able to see pending follow requests after a page reload.
-**Fix:**
-1. Migration: create `notifications` table (`id, user_id, type, actor_id, entity_id, text, read, created_at`)
-2. Write a notification row when: a follow request is sent, a follow request is approved, a user is invited to an event
-3. Load unread notifications from Supabase on login (`loadNotificationsFromSupabase()`) and merge into the notifications array
-4. Mark notifications as read on open (`read = true` update)
-**Effort:** Medium
-**Depends on:** P2-4 (follow requests) for the most important notification type
+### ~~P2-8~~ — Notifications not persisted to Supabase ✅
+**Fixed:** Three changes completing the notifications pipeline:
+1. **Mark as read on open** — when the Notifications tab is opened, a fire-and-forget `UPDATE notifications SET read=true WHERE user_id=me AND read=false` runs in Supabase. `loadNotificationsFromSupabase()` is also called on open so any new notifications received since login appear immediately without a page refresh.
+2. **Event invite notifications** — the local-only `notifications.unshift()` on event creation is now guarded to demo mode only. For real users, after `event_invites` rows are inserted, a `notifications` insert writes one row per invitee (`type: 'event_invite'`, `actor_id: currentUser.id`).
+3. **Follow request / approval** — already wired in P2-4: follow request sent writes `type:'follow_request'` to target; approval writes `type:'follow_approved'` to requester. `loadNotificationsFromSupabase()` was already called on login. No new migration needed — `notifications` table exists from migration 009.
 
 ---
 
@@ -223,10 +219,13 @@ After completing each task, run a backup (see CLAUDE.md backup protocol).
 
 ---
 
-### UI-13 — Event time picker minute dial should snap to 5-minute intervals
-**What:** The event creation time picker uses a clock dial UI which is correct and should be kept. However the minute dial currently allows selection of any minute value. It should only snap to 5-minute intervals: 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55.
-**Fix:** Find the clock dial minute handler in the event creation modal. When the user releases the dial, round the selected minute to the nearest 5-minute interval using: `Math.round(minutes / 5) * 5`. Apply the same snap behaviour to the end time picker. The hour dial is unaffected — any hour remains selectable.
-**Effort:** Small
+### ~~UI-14~~ — Events calendar does not scroll to today's date on open ✅
+**Fixed:** `calYear` and `calMonth` were hardcoded to `2026` and `2` (March). Replaced with `const _calNow = new Date(); let calYear = _calNow.getFullYear(), calMonth = _calNow.getMonth()`. The `.today` highlight CSS class was already applied by `renderCalendar()` — no further changes needed. Forward/back month navigation unchanged.
+
+---
+
+### ~~UI-13~~ — Event time picker minute should snap to 5-minute intervals ✅
+**Fixed:** The time picker is a native `<input type="time">` (not a custom clock dial). Added `step="300"` (300 seconds = 5 minutes) to both `#eventTime` and `#eventEndTime` inputs so the browser's native picker snaps to 5-minute intervals. Added a `snapMin()` helper in `submitNewEvent()` as a safety net that rounds any typed-in value to the nearest 5 minutes (`Math.round(m / 5) * 5`) and handles the 60-minute rollover edge case. Hours are unaffected.
 
 ---
 
