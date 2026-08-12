@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/fetch-news.js": {
+      "runtime": "nodejs20.x"
+    }
+  },
   "crons": [
     {
       "path": "/api/fetch-news",
