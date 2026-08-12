@@ -68,6 +68,15 @@ Target demographic: 25–40, UK-first, privacy-forward.
 - `016_fix_posts_visibility_check.sql` — drops and recreates posts_visibility_check to include 'private' (needed for diary posts) ⚠️ run in Supabase SQL editor
 - `017_circles.sql` — creates circles and circle_members tables with RLS for Trusted Circles feature
 - `018_circle_member_lookup.sql` — SECURITY DEFINER RPC `get_circle_owners_for_member(uuid)` so viewers can check which posters include them in a circle (feeds P2-6 audience filter) ⚠️ run in Supabase SQL editor
+- `019_outlet_accounts.sql` — adds `account_type` column to profiles; creates BBC News (UUID `a0000000-0000-0000-0000-000000000001`) and The Guardian (UUID `a0000000-0000-0000-0000-000000000002`) as outlet accounts in auth.users + profiles ⚠️ run in Supabase SQL editor
+- `020_posts_external_url.sql` — adds `external_url TEXT` column to posts for storing canonical article links ⚠️ run in Supabase SQL editor
+
+### Outlet accounts (news)
+- BBC News profile id: `a0000000-0000-0000-0000-000000000001`
+- The Guardian profile id: `a0000000-0000-0000-0000-000000000002`
+- Both are `account_type = 'outlet'`, `verified = true`, `privacy = 'public'`
+- News articles are inserted by `api/fetch-news.js` (Vercel serverless, runs hourly via vercel.json cron)
+- Required Vercel env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` (service_role key), `CRON_SECRET`
 
 ---
 

@@ -272,7 +272,8 @@ After completing each task, run a backup (see CLAUDE.md backup protocol).
 - [x] Friend profile sub-nav (Posts / Pulse / Tagged)
 - [x] Follow button text displaying correctly
 - [x] Sub-nav positioning fixed
-- [x] News feed BBC/Guardian only showing for followed outlets
+- [x] News feed BBC/Guardian only showing for followed outlets (demo)
+- [x] NEWS-01 — Real news feed via outlet accounts + RSS poller: migrations 019 (outlet profiles + account_type) and 020 (external_url on posts); api/fetch-news.js serverless function polls BBC and Guardian RSS hourly via vercel.json cron; fetchLiveNews() for real users queries outlet posts from Supabase; "Read full article ↗" link on news cards; openArticle() updated to handle DB posts (no longer requires post.article). ⚠️ Run migrations 019 and 020 in Supabase SQL editor. ⚠️ Set SUPABASE_URL, SUPABASE_SERVICE_KEY, CRON_SECRET in Vercel env vars.
 - [x] `openChatFromProfile()` function completed
 - [x] Profile name backfilled for existing users
 - [x] Avatar upload working (uploads to avatars bucket, writes avatar_url to profiles)

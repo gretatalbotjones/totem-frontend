@@ -1330,6 +1330,7 @@
   .pulse-action { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--muted); cursor: pointer; transition: color 0.15s; background: none; border: none; padding: 0; }
   .pulse-action:hover { color: var(--accent); }
   .pulse-source-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 600; color: var(--accent2); letter-spacing: 0.3px; text-transform: uppercase; margin-bottom: 6px; }
+  .news-read-link { display: inline-block; margin: 6px 0 2px; font-size: 0.78rem; font-weight: 600; color: var(--accent); text-decoration: none; }
 
   /* ── EVENTS ── */
   .event-card {
@@ -5503,17 +5504,74 @@ function setFeedMode(mode, btn) {
 let liveNewsFetched = false;
 let liveNewsNextId = 9000;
 
+// Fixed UUIDs matching 019_outlet_accounts.sql and api/fetch-news.js
+const BBC_NEWS_ID = 'a0000000-0000-0000-0000-000000000001';
+const GUARDIAN_ID = 'a0000000-0000-0000-0000-000000000002';
+
 async function fetchLiveNews() {
   const feed = document.getElementById('feed');
   const emptyMsg = document.getElementById('emptyMsg');
 
-  // Non-demo users haven't followed any news sources — show empty state
+  // Real users: load outlet posts from Supabase (only once per session)
   if (currentUser.name !== DEMO_ACCOUNT_NAME) {
-    document.querySelectorAll('.post-card').forEach(c => c.style.display = 'none');
-    if (emptyMsg) {
-      emptyMsg.textContent = 'No news sources followed yet ✦';
-      emptyMsg.style.display = 'block';
+    if (liveNewsFetched) { renderFeed(); return; }
+    if (!supabaseClient || !currentUser.id) return;
+
+    if (emptyMsg) { emptyMsg.textContent = 'Loading news…'; emptyMsg.style.display = 'block'; }
+
+    const { data, error } = await supabaseClient
+      .from('posts')
+      .select('id, user_id, caption, image_url, external_url, created_at, profiles!posts_user_id_fkey(name, avatar_url)')
+      .in('user_id', [BBC_NEWS_ID, GUARDIAN_ID])
+      .eq('feed_type', 'news')
+      .eq('visibility', 'public')
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    if (error) {
+      console.warn('[Hatch] fetchLiveNews:', error.message);
+      if (emptyMsg) { emptyMsg.textContent = 'Could not load news ✦'; emptyMsg.style.display = 'block'; }
+      return;
     }
+
+    const existingIds = new Set(posts.map(p => p.id));
+    (data || []).forEach(p => {
+      if (existingIds.has(p.id)) return;
+      const prof = p.profiles || {};
+      const authorName = prof.name || 'News';
+      // caption is stored as "headline\n\nsnippet" — split for display fields
+      const parts    = (p.caption || '').split('\n\n');
+      const headline = parts[0] || '';
+      const snippet  = parts.slice(1).join('\n\n');
+      posts.push({
+        id:         p.id,
+        userId:     p.user_id,
+        user:       authorName,
+        initial:    authorName[0].toUpperCase(),
+        avatar:     prof.avatar_url || null,
+        images:     p.image_url ? [p.image_url] : [],
+        headline,
+        caption:    p.caption || '',
+        article:    snippet || p.caption || '',
+        sourceUrl:  p.external_url || null,
+        feedType:   'news',
+        newsSource: authorName,
+        likes: 0, liked: false, comments: [],
+        time:       formatLiveTime(p.created_at),
+        audience:   'public',
+        authStatus: 'real', aiDeclared: false,
+      });
+    });
+
+    liveNewsFetched = true;
+
+    const newsCount = posts.filter(p => p.feedType === 'news').length;
+    if (newsCount === 0) {
+      if (emptyMsg) { emptyMsg.textContent = 'No news yet — check back soon ✦'; emptyMsg.style.display = 'block'; }
+      return;
+    }
+    if (emptyMsg) emptyMsg.style.display = 'none';
+    renderFeed();
     return;
   }
 
@@ -5673,8 +5731,8 @@ function buildPostCard(post) {
     const carouselBtns = `<button class="post-carousel-btn prev" onclick="carouselPrev(${post.id})">‹</button><button class="post-carousel-btn next" onclick="carouselNext(${post.id})">›</button><div class="post-carousel-dots">${dots}</div>`;
     imageHtml = `<div class="post-carousel" id="carousel-${post.id}"${post.article?' style="cursor:pointer;" onclick="openArticle('+post.id+')"':''}><div class="post-carousel-track" id="carousel-track-${post.id}">${slides}</div>${carouselBtns}<div class="post-carousel-counter">1 / ${imgs.length}</div></div>`;
   } else if (imgs.length === 1) {
-    imageHtml = post.article
-      ? `<div class="news-image-wrap" onclick="openArticle(${post.id})"><img class="post-image" src="${imgs[0]}" alt="post" loading="lazy" /></div>`
+    imageHtml = (post.article || post.sourceUrl)
+      ? `<div class="news-image-wrap" onclick="openArticle('${post.id}')"><img class="post-image" src="${imgs[0]}" alt="post" loading="lazy" /></div>`
       : `<img class="post-image" src="${imgs[0]}" alt="post" loading="lazy" />`;
   }
 
@@ -5702,6 +5760,7 @@ function buildPostCard(post) {
         <div class="caption-outer">
           <div class="caption-block clamped" id="cap-${post.id}"><strong ${nameTappable ? `style="cursor:pointer;color:var(--accent);" onclick="openFriendProfile('${safePostUser}')"` : ''}>${post.user}</strong> ${post.caption || post.headline || ""}</div>
           <span class="caption-more" id="cap-more-${post.id}" onclick="expandCaption(${post.id}, 'feed')">... more</span>
+          ${post.feedType === 'news' && post.sourceUrl ? `<a class="news-read-link" href="${post.sourceUrl}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">Read full article ↗</a>` : ''}
         </div>
       </div>
     </div>
@@ -7934,18 +7993,27 @@ function toggleHideCounts() {
 // ══════════════════════════════════════════
 
 function openArticle(postId) {
-  const post = posts.find(p => p.id === postId);
-  if (!post || !post.article) return;
-  trackInteraction(postId, 'read'); // reading full article = strong signal
-  const imgs = post.images || [post.image];
-  document.getElementById('articleHero').src = imgs[0];
+  const post = posts.find(p => String(p.id) === String(postId));
+  if (!post) return;
+  trackInteraction(postId, 'read');
+  const imgs = post.images || (post.image ? [post.image] : []);
+  const heroEl = document.getElementById('articleHero');
+  heroEl.src = imgs[0] || '';
+  heroEl.style.display = imgs[0] ? 'block' : 'none';
   document.getElementById('articleSource').textContent = post.newsSource || post.user;
-  document.getElementById('articleTime').textContent   = post.time;
-  document.getElementById('articleHeadline').textContent = post.headline || post.caption;
-  document.getElementById('articleMeta').textContent   = `Published by ${post.newsSource||post.user} · ${post.time}`;
-  document.getElementById('articleBody').innerHTML     = post.article.split('\n\n').filter(p=>p.trim()).map(p=>`<p>${p.trim()}</p>`).join('');
-  document.getElementById('articleSourceLink').href    = post.sourceUrl || '#';
-  document.getElementById('articleSourceLink').textContent = `View on ${post.newsSource||'source'} ↗`;
+  document.getElementById('articleTime').textContent   = post.time || '';
+  document.getElementById('articleHeadline').textContent = post.headline || post.caption || '';
+  document.getElementById('articleMeta').textContent   = `Published by ${post.newsSource||post.user} · ${post.time||''}`;
+  const body = post.article || post.caption || '';
+  document.getElementById('articleBody').innerHTML = body.split('\n\n').filter(s=>s.trim()).map(s=>`<p>${s.trim()}</p>`).join('') || `<p>${body}</p>`;
+  const link = document.getElementById('articleSourceLink');
+  if (post.sourceUrl) {
+    link.href = post.sourceUrl;
+    link.textContent = `View on ${post.newsSource||'source'} ↗`;
+    link.style.display = 'inline-block';
+  } else {
+    link.style.display = 'none';
+  }
   openModal('articleModal');
 }
 
