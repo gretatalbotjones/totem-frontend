@@ -10212,8 +10212,17 @@ function parseImageUrls(raw) {
 function showFeedSkeleton() {
   const feed = document.getElementById('feed');
   if (!feed) return;
-  const card = () => `<div class="skeleton-card"><div class="skeleton-line skeleton-img"></div><div class="skeleton-line skeleton-text"></div><div class="skeleton-line skeleton-text short"></div></div>`;
-  feed.innerHTML = card() + card() + card();
+  // Preserve #emptyMsg (it lives inside #feed) so getElementById still finds it later
+  const emptyMsg = document.getElementById('emptyMsg');
+  if (emptyMsg) emptyMsg.style.display = 'none';
+  feed.innerHTML = '';
+  if (emptyMsg) feed.appendChild(emptyMsg);
+  const cardHtml = '<div class="skeleton-card"><div class="skeleton-line skeleton-img"></div><div class="skeleton-line skeleton-text"></div><div class="skeleton-line skeleton-text short"></div></div>';
+  for (let i = 0; i < 3; i++) {
+    const el = document.createElement('div');
+    el.innerHTML = cardHtml;
+    feed.appendChild(el.firstChild);
+  }
 }
 
 async function loadFeedFromSupabase() {
