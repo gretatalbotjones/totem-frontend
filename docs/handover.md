@@ -16,7 +16,16 @@ docs/design-principles.md — Colour tokens, typography, UI patterns, component 
 docs/feature-inventory.md — Every feature with status (✅ / ⚠️ / 🔲 / ❌)
 docs/architecture.md      — Current single-file architecture + target Next.js architecture
 docs/migration-plan.md    — 9-phase incremental migration plan with estimates
+docs/strategy.md          — Growth strategy, market sizing, monetisation, funding, IPO thesis
 docs/handover.md          — This file
+```
+
+### Source documents (in repo root, do not delete)
+```
+Totem_Growth_Strategy_3.docx  — Full evidenced strategy with financial model (March 2026)
+feed-tech-roadmap.html        — 5-phase technical + commercial resourcing roadmap
+feed-growth-exit-model.html   — Long-term growth, funding arc and IPO thesis
+feed-vc-guide.html            — Investor landscape, fundraising strategy, VC targets
 ```
 
 ---
