@@ -84,6 +84,20 @@ Never build these into Hatch, regardless of how they'd affect metrics:
 - `box-shadow: 0 2px 12px rgba(26,23,20,0.08)` — subtle lift only
 - Touch targets: minimum 44px height
 
+### Images in the feed
+- Post images are **full screen width** — no horizontal padding, no rounded corners, no card border around them
+- The image bleeds edge to edge; the caption and actions sit below it with normal padding
+- This is the same pattern as Instagram Stories and native camera roll — images feel immersive, not boxed in
+- Carousels follow the same rule — full width, swipe horizontally, dots indicator below
+- Thumbnails in grids (profile page, collections) may have radius; feed images never do
+
+### Minimalism
+- Every element on screen must earn its place. If removing it would not confuse the user, remove it.
+- No decorative dividers, drop shadows for depth, or visual flourishes that don't carry information
+- White space is not wasted space — it is how the content breathes
+- Prefer one strong typographic hierarchy over multiple colours, weights, and sizes competing for attention
+- When in doubt, do less
+
 ### Motion
 - Tab transitions: `fadeUp 0.28s ease`
 - Modal open: slide up from bottom
