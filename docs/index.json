@@ -1,0 +1,8 @@
+{
+  "product": "docs/product.md",
+  "strategy": "docs/strategy.md",
+  "architecture": "docs/architecture.md",
+  "migrationPlan": "docs/migration-plan.md",
+  "featureInventory": "docs/feature-inventory.md",
+  "designPrinciples": "docs/design-principles.md"
+}

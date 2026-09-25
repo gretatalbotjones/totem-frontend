@@ -135,6 +135,7 @@ CRON_SECRET:       hatch-cron-2026-secret-xyz  (in Vercel env vars only, not in 
 
 | File | Purpose |
 |---|---|
+| `docs/index.json` | Machine-readable index of all doc files — read this first to discover docs |
 | `docs/product.md` | Mission, user journeys, MVP definition, success criteria |
 | `docs/strategy.md` | Growth plan, market sizing, revenue model, funding, competition |
 | `docs/design-principles.md` | Visual rules, UX principles, anti-patterns, emotional goals |
