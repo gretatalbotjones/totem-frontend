@@ -1,177 +1,82 @@
-# Hatch — Product Document
+# Product
 
-## Vision
+## Mission
 
-Hatch is a privacy-first social platform for people who want to share with people they actually know, without algorithmic manipulation, data selling, or behavioural advertising.
+Give people a private, honest, algorithm-free place to share with the people they actually know. No data selling. No behavioural manipulation. Verified real identities only.
 
-**Tagline:** *Your content. Your rules.*
-
-**Core proposition:** Verified-identity, chronological, algorithm-free social networking with user-controlled audiences.
-
-**Target demographic:** 25–40, UK-first, privacy-forward professionals.
+*"Your content. Your rules."*
 
 ---
 
-## What makes Hatch different
+## Target users
 
-| Principle | How it manifests |
-|---|---|
-| No algorithmic feed | Chronological by default; optional Explore blend is user-controlled |
-| No data selling | Business model is subscriptions, not advertising |
-| Verified identity | KYC at signup — one real person per account |
-| User-controlled audiences | Every post targets: Everyone / Trusted Circles / Event attendees |
-| Invite-only growth | Invite codes gate signup — controlled, high-trust community |
+**Primary:** Urban professionals, 25–40, UK-first (East London launch). Privacy-aware but not paranoid. Active on Instagram or WhatsApp but increasingly uncomfortable with it. Social plans with real-world friends are a core weekly behaviour.
+
+**Not:** Teenagers, content creators seeking reach, brands, anonymous communities.
+
+**Key insight:** 60–70% of Europeans report concern about data privacy but only 3–5% have switched away from Meta. The gap is supply-constrained (no good alternative), not demand-constrained. Hatch is the alternative.
 
 ---
 
-## Product areas
+## Core user journeys
 
-### 1. Authentication
-- Invite-code gated signup
-- 3-step flow: account creation → email OTP → video identity verification (KYC)
-- Login, logout, password reset
-- "Continue as" quick login for returning users
+### 1. Sign up
+Invited by a friend → enter invite code → name + email + password → email OTP → video identity check (KYC) → prompted to upload avatar → land on empty personal feed with prompt to follow people.
 
-### 2. Home Feed
-Four sub-modes the user switches between:
-- **Personal** — posts from followed users only, chronological
-- **Pulse** — short text posts (≤150 chars) from followed users
-- **News** — articles from followed outlet accounts (BBC News, The Guardian)
-- **Explore** — algorithm-blended mix (personal + pulse + news, user-controlled ratio)
+**Current state:** Invite code, OTP, and avatar prompt all work. KYC step is a fake UI — user sees a recording button but no real camera capture happens.
 
-Feed features: like, comment, save, share; realtime new-post injection; multi-image carousel posts
+### 2. Post something
+Tap + in bottom nav → choose Diary / Photo / Pulse / Event → compose → pick audience (Everyone / Circles / Event attendees) → post. New post appears in feed immediately (optimistic).
 
-### 3. Diary
-- Ephemeral 24-hour photo/caption posts
-- Visible as ring avatars in the diary strip above the feed
-- Only visible to the owner and optionally to followers
-- Private by design — stored with `visibility: 'private'`
+**Current state:** Photo posts, pulse posts, and diary entries all work and persist to Supabase. Multi-image carousel works. Audience picker is wired — friends-only posts are filtered correctly in the feed.
 
-### 4. Post Creation
-- Speed dial: Diary / Photo post / Event / Pulse post
-- Photo posts: single or multi-image carousel, caption, audience picker
-- Pulse posts: text-only ≤150 chars, audience picker
-- Audience picker: Everyone (public) / Circles (friends-only) / Event attendees
+### 3. Follow someone
+Search by name → tap result → opens their profile → tap Follow. Public accounts follow instantly. Private accounts: request sent → they approve/decline → notification both ways.
 
-### 5. Trusted Circles
-- User-defined named groups (e.g. "Family", "Close Friends", custom)
-- Seeded at registration with "Family" and "Close Friends"
-- Posts with audience = Circles are only shown to users in the poster's circles
-- Circle management: create, rename, delete, add/remove members
+**Current state:** Working end-to-end including follow requests, notifications, and follower/following counts.
 
-### 6. Events
-- Create events: title, description, location, start/end time, visibility (public/followers/invite-only)
-- Calendar view (month + week views) with event dots and RSVP status colours
-- Event cards with RSVP (Going / Maybe / Declined)
-- Invite search: find followed users to invite
-- Availability polling: ask friends when they're free before finalising a date
+### 4. See the news
+Tap News sub-tab in feed → see articles from BBC News and The Guardian (if following either account). Tap an article → "Read full article ↗" opens original URL in new tab.
 
-### 7. News Feed
-- BBC News and The Guardian modelled as outlet accounts in Supabase
-- Users follow outlets to see their articles in the News tab
-- Articles ingested hourly via `api/fetch-news.js` (Vercel serverless, 5 RSS feeds)
-- Articles display: headline, snippet, thumbnail, "Read full article →" link
-- No full article text stored — snippet/description only
+**Current state:** Working. BBC and Guardian are real outlet accounts in Supabase. Articles ingested via serverless RSS poller. Must be triggered manually (no auto-cron yet — requires Vercel Pro).
 
-### 8. Profile
-- Own profile: avatar, name, bio, followers/following/post counts
-- Post grid (Photos / Pulse / Tagged / Saved tabs)
-- Diary strip on profile
-- Collections strip (grouped saved posts)
-- Privacy setting: public / private
-- Verified badge (KYC)
+### 5. Plan an event
+Tap + → Event → fill in details → set visibility (public / followers / invite-only) → create. Calendar updates. Invited friends receive a notification and can RSVP.
 
-### 9. Follow Graph
-- Follow public accounts instantly
-- Follow private accounts via request → approve/decline flow
-- Followers/following modals with tappable user rows
-- Unfollow, withdraw request
-
-### 10. Notifications
-- Follow request received / approved
-- Event invites
-- Persistent to Supabase; marked read on tab open
-- Bell badge in top nav
-
-### 11. Messages
-- Chat UI exists in prototype (demo data only)
-- Not wired to Supabase — deferred to Phase 2
-
-### 12. Search
-- User search by name (Supabase `ilike`)
-- Post and event search (local/demo for now)
-- Live search results overlay
-
-### 13. Collections
-- Save posts into named collections
-- Collections strip on profile page
-- Persisted to Supabase `collections` + `collection_items` tables
-
-### 14. KYC Video Verification
-- UI exists (3-step auth card with video recording step)
-- Current implementation is fake (no real camera capture)
-- P3 item: replace with Onfido SDK
-
-### 15. Explore / Algorithm Dial
-- Tab strip currently (Personal / Pulse / News / Explore)
-- Explore blends post types by user-controlled ratio
-- Topics modal lets users tune the blend
-- Roadmap: replace with chronological ↔ suggested slider
-
-### 16. AI Assistant
-- Text input UI at bottom of screen
-- Handles natural language navigation ("go to events", "show my profile")
-- Limited — navigational only, no real AI backend
+**Current state:** Event creation and calendar work. Invite-only event visibility has an RLS bug — invited users can't see event details even after being invited.
 
 ---
 
-## Phase 1 MVP status (as of Sep 2026)
+## MVP definition
 
-All Phase 1 items are implemented in the prototype:
+The MVP is the prototype currently live at https://totem-frontend-five.vercel.app/
 
-| Feature | Status |
-|---|---|
-| Profile + posting | ✅ Live |
-| Follow graph + follow requests | ✅ Live |
-| Trusted Circles | ✅ Live |
-| Collections | ✅ Live |
-| Invite code system | ✅ Live |
-| Home feed (Supabase) | ✅ Live |
-| Auth (signup/login/reset) | ✅ Live |
-| Avatar upload prompt post signup | ✅ Live |
-| News feed (outlets + RSS) | ✅ Live |
-| KYC video verification | ⚠️ Fake UI (P3) |
-| Algorithm dial (real slider) | ⚠️ Tab strip only (P3) |
+It includes: auth, personal feed, post creation (photo + pulse + diary), follow graph with request flow, Trusted Circles (audience filtering), events calendar, notifications, profile pages, news feed (BBC + Guardian), search, collections.
 
-## Phase 2 (deferred)
-
-- Diary expiry (24-hour deletion)
-- DMs (Messages tab, currently demo-only)
-- Memories archive
-- QR ID card
-- Feed Switch (Instagram import)
-- Feed+ subscriptions
-- React Native mobile app
+**What MVP does not include (deferred):**
+- Real KYC (fake UI only)
+- Messaging (demo data only, no Supabase connection)
+- Diary 24-hour expiry (posts persist indefinitely)
+- Circle member management UI (table exists, picker incomplete)
+- Availability polling to Supabase (UI only)
 
 ---
 
-## Infrastructure
+## Success criteria
 
-| Component | Detail |
-|---|---|
-| Frontend | Single `index.html` — vanilla JS + inline CSS, ~10,800 lines |
-| Backend | Supabase (auth, PostgreSQL, storage, realtime) |
-| Hosting | Vercel — https://totem-frontend-five.vercel.app/ |
-| News ingestion | `api/fetch-news.js` serverless function, triggered manually or via cron |
-| Events pipeline | `events_pipeline/` — venue scraper (separate, not deployed) |
-| Database | 20 applied migrations in `supabase/migrations/` |
-| Tests | `tests/supabase_test_suite.js` — 39 tests, 36 pass |
+### Prototype (now)
+- [ ] A new real user can sign up, post, follow someone, and see their posts in feed — with no demo data visible
+- [ ] BBC News and Guardian articles appear in News tab for users who follow those accounts
+- [ ] Follow request flow works end-to-end (request → approve/decline → notification)
+- [ ] No JavaScript parse errors that crash the app
 
----
+### Seed (0 → 500 users)
+- [ ] 5,000 East London waitlist signups
+- [ ] 500 active users, DAU/MAU ≥ 25%
+- [ ] KYC real implementation shipped (Onfido)
+- [ ] Zero data selling, verified GDPR compliance
 
-## Supabase project
-
-- URL: `https://ocztxpmmbopcbtshetts.supabase.co`
-- Outlet account UUIDs:
-  - BBC News: `a0000000-0000-0000-0000-000000000001`
-  - The Guardian: `a0000000-0000-0000-0000-000000000002`
+### Series A trigger (500K MAU)
+- [ ] £1M ARR (Hatch Plus subscriptions live)
+- [ ] Second EU market live (Berlin or Amsterdam)
+- [ ] DAU/MAU ≥ 35%

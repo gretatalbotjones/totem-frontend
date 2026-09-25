@@ -1,139 +1,115 @@
-# Hatch — Design Principles
+# Design Principles
 
-## Brand identity
+## What good looks like
 
-**Feeling:** Premium, private, considered. Not loud. Not addictive.
-**Contrast to competitors:** Instagram feels performative. Twitter/X feels hostile. Hatch feels like a private members' club.
+A Hatch screen feels like a well-designed print magazine opened on a phone. Warm, considered, unhurried. It does not feel like a social media app trying to extract attention. A user should feel *calm* after opening Hatch, not stimulated.
 
-**Name:** "hatch" — lowercase in wordmark. Suggests emergence, intimacy, a protected space.
+Good: clean white space, warm off-white backgrounds, navy as the only strong colour, editorial typography, no badges demanding attention except when genuinely needed.
+
+Bad: red notification counts on everything, infinite scroll with no end, auto-playing video, sponsored content disguised as organic, motion that exists to impress rather than orient.
 
 ---
 
-## Visual design
+## Design references
 
-### Colour palette
+- **Monocle magazine** — editorial warmth, unhurried, premium without being cold
+- **Spotify** — utility that became loved; functional without being clinical
+- **Notion** — calm, productive, respects the user's focus
+- **Phantom wallet** — mobile-first, clean, dark/light works equally well
+- **The Guardian** — digital editorial that respects text
 
-| Token | Value | Usage |
-|---|---|---|
-| `--bg` | `#f7f5f2` | Page background — warm off-white, paper-like |
-| `--surface` | `#ffffff` | Cards, modals, panels |
-| `--surface2` | `#f0ede8` | Inputs, secondary surfaces |
-| `--border` | `#e2ddd8` | Default borders |
-| `--border2` | `#d0cac3` | Stronger borders |
-| `--text` | `#1a1714` | Primary text — near-black, warm |
-| `--muted` | `#8a837c` | Secondary text, labels |
-| `--accent` | `#191D64` | Navy — primary brand colour, buttons, links |
-| `--accent-light` | `#e8eaf6` | Accent tint for hover states |
-| `--accent2` | `#2c5282` | Secondary accent (news source tags) |
-| `--red` | `#c0392b` | Destructive actions, recording indicator |
-| `--green` | `#27ae60` | Success, going/confirmed states |
-| `--gold` | `#c9a227` | Verification pending, premium signals |
+**What we are not:** Instagram (dopamine-maximised), Twitter/X (anxiety-inducing), TikTok (compulsive), LinkedIn (performative).
+
+---
+
+## Emotional goals
+
+When a user opens Hatch they should feel:
+- **Safe** — this is a private space, not a public stage
+- **Present** — the content is from people I actually know
+- **Calm** — nothing is trying to hijack my attention
+- **In control** — I chose who sees this, and I can change it
+
+When a user shares something they should feel:
+- **Comfortable** — the audience is exactly who I intended
+- **Heard** — the people who matter will see this
+- **Not judged** — there is no public like count, no viral pressure
+
+---
+
+## Anti-patterns
+
+Never build these into Hatch, regardless of how they'd affect metrics:
+
+| Anti-pattern | Why it's banned |
+|---|---|
+| Infinite algorithmic scroll | Designed to maximise time-on-app, not user value |
+| Read receipts without consent | Creates social anxiety, erodes safety |
+| Public like/follower counts on feed | Turns sharing into performance |
+| Auto-play video | Hijacks attention without consent |
+| Red notification badges for non-urgent items | Creates compulsive checking |
+| "X people viewed your profile" | Surveillance culture |
+| Algorithmic content without user control | Black box manipulation |
+| Moving features from free to paid | Explicitly forbidden — builds resentment, kills trust |
+| Dark patterns in privacy settings | Contradicts the product promise |
+
+---
+
+## Visual rules
+
+### Colour
+```
+--bg:           #f7f5f2   Page background — warm off-white, paper-like
+--surface:      #ffffff   Cards, modals
+--surface2:     #f0ede8   Inputs, secondary surfaces
+--border:       #e2ddd8   Standard borders
+--text:         #1a1714   Near-black, warm
+--muted:        #8a837c   Labels, secondary text
+--accent:       #191D64   Navy — primary brand colour, buttons, links
+--accent-light: #e8eaf6   Hover tints
+--red:          #c0392b   Destructive only
+--green:        #27ae60   Success/confirmation only
+--gold:         #c9a227   Verification pending, premium signals
+```
 
 ### Typography
-
-| Role | Family | Weight |
-|---|---|---|
-| Wordmark / display | Abadi MT Condensed / Century Gothic / Gill Sans | 700 |
-| Body / UI | Outfit (Google Fonts) | 300, 400, 500, 600 |
-| Italic accent | Cormorant Garamond (Google Fonts) | 400, 600 italic |
-
-The warm, editorial font pairing (Cormorant + Outfit) signals quality and restraint. Avoid system fonts in production.
+- **Wordmark:** Abadi MT Condensed / Century Gothic / Gill Sans — all-caps or small-caps `hatch`
+- **Body/UI:** Outfit (Google Fonts) — 300, 400, 500, 600
+- **Italic accent:** Cormorant Garamond — 400 or 600 italic, used sparingly for warmth
 
 ### Spacing and shape
+- `border-radius: 14px` on all cards, modals, buttons
+- `max-width: 600px` — mobile-first, centred on desktop
+- `16px` horizontal padding on content
+- `box-shadow: 0 2px 12px rgba(26,23,20,0.08)` — subtle lift only
+- Touch targets: minimum 44px height
 
-- `--radius: 14px` — primary border radius (cards, modals, buttons)
-- `--shadow: 0 2px 12px rgba(26,23,20,0.08)` — subtle lift
-- `--shadow-md: 0 4px 24px rgba(26,23,20,0.12)` — modal elevation
-- Max content width: `600px` — mobile-first, centred on desktop
-- Consistent `16px` horizontal padding on content
-
----
-
-## UI patterns
-
-### Layout
-
-- **Top nav:** sticky, blurred background (`backdrop-filter: blur(14px)`), logo centred, search + notifications in corners
-- **Bottom tab bar:** 5 tabs (Feed, Events, + Create, Messages, Profile); z-index 355
-- **Tab pages:** full-height, fade-up animation on switch (`fadeUp 0.28s ease`)
-- **Modals:** slide up from bottom (`.modal-sheet`), overlay with `closeModalByOverlay` tap-outside-to-close
-
-### Interaction
-
-- **Optimistic UI:** likes, saves, follows update instantly and roll back on error
-- **Toasts:** non-blocking feedback, bottom-centre, auto-dismiss 2.8s
-- **Skeleton loading:** shimmer placeholders while feed loads
-- **Pull-to-refresh equivalent:** feed reloads when switching back to feed tab
-
-### Feed post card
-
-Structure (top to bottom):
-1. Image (carousel if multi-image, tappable for news)
-2. Footer: avatar + author name (tappable for non-own posts) + caption
-3. Actions: like / comment / share / save + timestamp
-4. Audience label (if circles/event audience)
-5. Tagged people
-6. Comments section (collapsible)
-
-### Profile
-
-- Large avatar (76px, circle, upload-on-tap)
-- Stats row: posts / followers / following (all tappable)
-- Bio text
-- Sub-nav tabs: Photos / Pulse / Tagged / Saved
-- Diary strip (own profile only)
-- Collections strip
-
-### Diary ring
-
-- Circular avatar ring in the feed header strip
-- Unseen = coloured ring, Seen = grey ring
-- Own ring has a + add button
-- Tapping opens fullscreen viewer
+### Motion
+- Tab transitions: `fadeUp 0.28s ease`
+- Modal open: slide up from bottom
+- Skeleton: shimmer animation only — no bouncing, no spring physics
+- Never animate for decoration. Animate to orient.
 
 ---
 
-## Design principles (functional)
+## UX principles
 
-1. **Privacy by default.** Every post defaults to a conservative audience. Users consciously choose to share wider.
-2. **Chronological first.** The default feed is reverse-chronological. Algorithmic sorting is opt-in.
-3. **No engagement bait.** No likes count shown prominently. No infinite algorithmic scroll designed to maximise time-on-app.
-4. **Real people only.** Verified badge signals identity has been confirmed. Outlet accounts (BBC, Guardian) are clearly machine-managed.
-5. **Mobile-first.** Design decisions are made for a 390px wide screen. Desktop is a wider version of the same layout.
+**1. Privacy defaults are conservative.** Every post defaults to the most private reasonable audience. Users consciously widen, never accidentally expose.
 
----
+**2. Chronological unless chosen otherwise.** The default feed is reverse-chronological. Algorithmic blending is labelled and opt-in via the Explore mode.
 
-## Component inventory (prototype → Next.js mapping)
+**3. Audience is always visible before posting.** The audience chip (Everyone / Circles / Event) is always visible in the composer. There is no hidden default.
 
-| Prototype element | Next.js component |
-|---|---|
-| `tab-feed` + feed sub-nav | `app/(app)/feed/page.tsx` + `FeedSubNav` |
-| Post card | `components/feed/PostCard.tsx` |
-| Diary strip | `components/diary/DiaryStrip.tsx` |
-| `tab-events` | `app/(app)/events/page.tsx` |
-| Calendar (month + week) | `components/events/Calendar.tsx` |
-| `tab-notifs` | `app/(app)/notifications/page.tsx` |
-| Follow request card | `components/notifications/FollowRequestCard.tsx` |
-| `tab-profile` | `app/(app)/profile/page.tsx` |
-| Friend profile modal | `app/(app)/profile/[id]/page.tsx` (or drawer) |
-| Post modal | `components/post/CreatePostModal.tsx` |
-| Pulse modal | `components/post/CreatePulseModal.tsx` |
-| Diary modal | `components/diary/CreateDiaryModal.tsx` |
-| Event modal | `components/events/CreateEventModal.tsx` |
-| Avatar upload modal | `components/profile/AvatarUpload.tsx` |
-| Circles manager | `components/circles/CircleManager.tsx` |
-| Search overlay | `components/search/SearchOverlay.tsx` |
-| Bottom tab bar | `components/ui/BottomNav.tsx` |
-| Top nav | `components/ui/TopNav.tsx` |
-| Auth screens | `app/(auth)/` pages |
-| Toast | `components/ui/Toast.tsx` |
-| Skeleton | `components/ui/Skeleton.tsx` |
+**4. Optimistic UI with honest rollback.** Likes, saves, follows update immediately and roll back visibly with an error toast if the write fails. Never leave the user uncertain about whether something happened.
 
----
+**5. One toast at a time.** Toast messages are non-blocking, auto-dismiss in 2.8s, appear bottom-centre. Never stack more than one. Never use them for errors that need a decision.
 
-## Accessibility notes
+**6. Modals slide up, not over.** All modals use the bottom-sheet pattern. Tap outside to close. Always a visible × button. Never trap the user.
 
-- All interactive elements need `aria-label` (currently missing in prototype)
-- Focus management needed for modals (currently not implemented)
-- Colour contrast: `--text` on `--bg` passes AA; `--muted` on `--bg` marginal — check in Next.js build
-- Touch targets: all buttons should be ≥44px tall (mostly satisfied in current design)
+**7. Empty states are instructive.** An empty feed says "Follow people to see their posts here ✦" — it tells the user what to do, not just that nothing exists.
+
+**8. Verified = trustworthy, not superior.** The verified badge indicates KYC completion, not status. Outlet accounts (BBC, Guardian) show it. So should every real user once KYC is implemented.
+
+**9. No metric anxiety.** Follower counts are visible on profiles but not on individual posts in the feed. Likes are shown but not prominently. We do not display "trending" content.
+
+**10. Actions are never ambiguous.** Every button has a clear label or a clearly understood icon. No mystery meat navigation. If you can't tell what a button does without tapping it, redesign it.

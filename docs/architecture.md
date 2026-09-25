@@ -1,218 +1,196 @@
-# Hatch — Architecture
+# Architecture
 
-## Current architecture (prototype)
+## Current architecture
+
+**Single HTML file prototype.** Everything — CSS, HTML, JavaScript — lives in `index.html` (~10,800 lines).
 
 ```
 Browser
-  └── index.html (single file, ~10,800 lines)
-        ├── CSS (~2,200 lines inline)
-        ├── HTML (~1,400 lines)
-        └── JavaScript (~7,200 lines)
-              ├── Global state (JS variables: currentUser, posts, events, contacts…)
-              ├── Auth (Supabase JS SDK, CDN-loaded)
-              ├── Data fetching (direct Supabase calls, no abstraction layer)
-              ├── DOM manipulation (getElementById everywhere)
-              └── Business logic (intermixed with rendering)
+└── index.html
+      ├── CSS (~2,200 lines inline)
+      ├── HTML (~1,400 lines) — 5 tab-pages + modals
+      └── JavaScript (~7,200 lines)
+            ├── ~40 global variables (currentUser, posts, events, contacts…)
+            ├── Supabase JS SDK (CDN: cdn.jsdelivr.net, pinned @2.105.3)
+            ├── Direct Supabase calls throughout (no data layer abstraction)
+            └── DOM manipulation via getElementById everywhere
 
-Supabase (Backend as a Service)
-  ├── Auth (email/password, OTP)
-  ├── PostgreSQL (profiles, posts, follows, events, notifications…)
-  ├── Storage (avatars bucket, posts bucket)
-  └── Realtime (feed new-post subscription)
+Supabase (backend-as-a-service)
+├── Auth — email/password, OTP, session management
+├── PostgreSQL — all application data (20 migrations applied)
+├── Storage — avatars bucket, posts bucket
+└── Realtime — feed new-post subscription channel
 
-Vercel (Hosting)
-  ├── index.html (static file serving)
-  └── api/fetch-news.js (serverless function — RSS ingestion)
+Vercel (hosting)
+├── index.html — static file, auto-deploys from GitHub main branch
+└── api/fetch-news.js — CommonJS serverless function (RSS ingestion)
+
+GitHub
+└── gretatalbotjones/totem-frontend — source of truth, triggers Vercel deploy
 ```
-
-### Database schema
-
-```
-profiles        (id, name, bio, avatar_url, verified, privacy, account_type, created_at)
-posts           (id, user_id, caption, image_url, feed_type, visibility, external_url, created_at)
-follows         (follower_id, following_id, created_at)
-follow_requests (id, requester_id, target_id, status, created_at)
-events          (id, user_id, title, description, location, starts_at, ends_at, visibility, cover_image_url)
-event_invites   (event_id, invitee_id, rsvp)
-collections     (id, user_id, name, created_at)
-collection_items(id, collection_id, post_id, created_at)
-invite_codes    (id, code, used_by, used_at, created_at)
-notifications   (id, user_id, type, actor_id, entity_id, text, read, created_at)
-likes           (id, post_id, user_id, created_at)
-saved_posts     (id, post_id, user_id, saved_at)
-comments        (id, post_id, user_id, text, created_at)
-circles         (id, user_id, name, created_at)
-circle_members  (id, circle_id, member_id, created_at)
-```
-
-All tables have Row Level Security enabled. 20 migration files in `supabase/migrations/`.
 
 ### Known architectural problems
 
-1. **Single-file fragility** — One JS parse error crashes the entire app (happened twice in development). `const` shadowing, missing semicolons, typos — all fatal.
-2. **Global state** — ~40 module-level variables (`currentUser`, `posts`, `events`, `contacts`, `groupDefs`…). No encapsulation. Race conditions possible on auth state changes.
-3. **Demo/real user data interleaved** — Large arrays of hardcoded demo data (`_DEMO_POSTS`, `_DEMO_CONTACTS`, `_DEMO_EVENTS`) are guarded by `isDemoAccount` checks scattered throughout the codebase.
-4. **No type safety** — All Supabase responses are untyped. Field name typos cause silent bugs.
-5. **DOM as state** — `getElementById` used for reading state (e.g. `followerCount.textContent`). No single source of truth.
-6. **Inline event handlers** — `onclick="..."` strings in HTML, making refactoring dangerous.
-7. **Scaling limit** — At 10,800 lines, further meaningful features are increasingly risky to add.
+1. **Single-file fragility** — one JS parse error crashes the entire app (happened twice in production). No isolation between features.
+2. **Global state everywhere** — ~40 module-level variables with no encapsulation. `currentUser`, `posts`, `events`, `groupDefs`, `contacts` are all mutable globals.
+3. **DOM as state** — `getElementById` used to both read and write state (e.g. reading `followerCount.textContent` as a number). No single source of truth.
+4. **Inline onclick handlers** — `onclick="..."` strings in HTML make refactoring dangerous and prevent proper event delegation.
+5. **Demo/real interleaved** — `_DEMO_POSTS`, `_DEMO_CONTACTS`, `_DEMO_EVENTS` arrays guarded by `isDemoAccount` scattered throughout. Risk of demo data leaking to real users.
+6. **No types** — all Supabase responses are untyped. Field name typos cause silent bugs (e.g. `user_id` vs `userId`).
+7. **Scale ceiling** — at 10,800 lines, further meaningful features are high-risk to add.
 
 ---
 
-## Target architecture (Next.js)
+## Target architecture
 
-### Stack decisions
+Next.js 14 (App Router) + TypeScript + Tailwind CSS + Supabase (unchanged) + Zustand.
 
-| Layer | Choice | Rationale |
-|---|---|---|
-| Framework | Next.js 14+ (App Router) | SSR, file-based routing, React ecosystem, first-class Vercel support |
-| Language | TypeScript | Catches bugs at compile time; Supabase can generate types from schema |
-| Styling | Tailwind CSS | Consistent with design tokens already established; utility-first matches the UI patterns |
-| Auth | Supabase Auth (`@supabase/ssr`) | Existing auth unchanged; SSR package gives server-side session |
-| Database | Supabase PostgreSQL (existing) | All migrations, RLS, RPC functions carry forward unchanged |
-| Storage | Supabase Storage (existing) | `avatars` and `posts` buckets unchanged |
-| Realtime | Supabase Realtime | Feed + notification subscriptions, cleaner in component model |
-| Global state | Zustand | Lightweight typed store; replaces ~40 global variables |
-| Images | Next.js Image | Automatic optimisation, lazy loading, responsive sizes |
-| KYC | Onfido SDK | Real video verification; replaces fake timer implementation |
-| Deployment | Vercel (existing) | No change; crons available on Pro plan |
-
-### Folder structure
+See `docs/migration-plan.md` for the phased approach.
 
 ```
-hatch-web/                          # New Next.js project (separate repo recommended)
+Next.js app (new repo: hatch-web)
 ├── app/
-│   ├── (auth)/                     # No nav bar
-│   │   ├── login/page.tsx
-│   │   ├── register/page.tsx
-│   │   └── verify/page.tsx         # KYC via Onfido
-│   ├── (app)/                      # With bottom nav bar
-│   │   ├── layout.tsx              # Shell: TopNav + BottomNav
-│   │   ├── feed/page.tsx           # Home feed + sub-nav
-│   │   ├── events/page.tsx         # Calendar + events list
-│   │   ├── notifications/page.tsx  # Follow requests + notifications
-│   │   ├── messages/page.tsx       # Chat (Phase 2)
-│   │   └── profile/
-│   │       ├── page.tsx            # Own profile
-│   │       └── [id]/page.tsx       # User/outlet profile
-│   ├── api/
-│   │   ├── fetch-news/route.ts     # RSS ingestion (port of existing)
-│   │   └── onfido/webhook/route.ts # KYC result handler
-│   └── layout.tsx                  # Root layout + providers
-├── components/
-│   ├── feed/
-│   │   ├── Feed.tsx                # Feed container + realtime sub
-│   │   ├── PostCard.tsx            # Post card (photo, pulse, news)
-│   │   ├── DiaryStrip.tsx          # Diary rings at top of feed
-│   │   └── FeedSubNav.tsx          # Personal / Pulse / News / Explore
-│   ├── post/
-│   │   ├── CreatePostModal.tsx     # Photo post creation
-│   │   ├── CreatePulseModal.tsx    # Pulse post creation
-│   │   ├── AudiencePicker.tsx      # Everyone / Circles / Event
-│   │   └── ImageUpload.tsx         # Multi-image with carousel preview
-│   ├── profile/
-│   │   ├── ProfileHeader.tsx       # Avatar, name, stats, buttons
-│   │   ├── ProfileGrid.tsx         # Posts/Pulse/Tagged/Saved tabs
-│   │   └── AvatarUpload.tsx        # Upload + crop
-│   ├── events/
-│   │   ├── Calendar.tsx            # Month + week views
-│   │   ├── EventCard.tsx           # Event with RSVP
-│   │   └── CreateEventModal.tsx
-│   ├── notifications/
-│   │   ├── NotificationList.tsx
-│   │   └── FollowRequestCard.tsx
-│   ├── circles/
-│   │   ├── CircleManager.tsx       # Manage circles
-│   │   └── CirclePicker.tsx        # Audience selector
-│   └── ui/
-│       ├── BottomNav.tsx
-│       ├── TopNav.tsx
-│       ├── Modal.tsx
-│       ├── Toast.tsx
-│       ├── Avatar.tsx
-│       ├── Button.tsx
-│       └── Skeleton.tsx
-├── lib/
-│   ├── supabase/
-│   │   ├── client.ts               # Browser client (singleton)
-│   │   ├── server.ts               # Server client (SSR)
-│   │   └── types.ts                # Generated: `supabase gen types typescript`
-│   ├── hooks/
-│   │   ├── useUser.ts
-│   │   ├── useFeed.ts              # Feed + realtime
-│   │   ├── useFollows.ts
-│   │   ├── useNotifications.ts     # Notifications + realtime
-│   │   └── useCircles.ts
-│   └── utils/
-│       ├── upload.ts               # Storage helpers
-│       ├── format.ts               # Dates, numbers
-│       └── news.ts                 # RSS parsing (port of fetch-news.js)
-├── store/
-│   └── useAppStore.ts              # Zustand: currentUser, toasts, modal state
-├── supabase/
-│   └── migrations/                 # All 20 existing migrations carry forward
-├── public/
-├── tailwind.config.ts
-├── next.config.ts
-└── tsconfig.json
+│   ├── (auth)/              — login, register, verify — no nav bar
+│   └── (app)/               — all authenticated routes — with nav bar
+│       ├── layout.tsx        — TopNav + BottomNav shell
+│       ├── feed/page.tsx
+│       ├── events/page.tsx
+│       ├── notifications/page.tsx
+│       ├── messages/page.tsx
+│       └── profile/[id]/page.tsx
+├── components/              — reusable React components
+├── lib/supabase/            — typed Supabase client (browser + server)
+├── lib/hooks/               — useFeed, useUser, useNotifications, useCircles
+├── store/useAppStore.ts     — Zustand (replaces global JS variables)
+└── supabase/migrations/     — all 20 existing migrations carry forward
+
+Supabase — unchanged (same project, same URL, same keys, same schema)
+Vercel — same project, connect new repo
 ```
 
-### State management
-
-Replace the ~40 global JS variables with:
-
-```ts
-// store/useAppStore.ts (Zustand)
-interface AppStore {
-  currentUser: User | null
-  toasts: Toast[]
-  activeModal: string | null
-  setUser: (user: User | null) => void
-  addToast: (msg: string) => void
-  openModal: (id: string) => void
-  closeModal: () => void
-}
-
-// lib/hooks/useFeed.ts (Tanstack Query or SWR + Supabase Realtime)
-// lib/hooks/useNotifications.ts
-// lib/hooks/useFollows.ts (per-profile)
-// lib/hooks/useCircles.ts
-```
-
-### Auth flow
-
-```
-middleware.ts → check Supabase session cookie
-  → no session → redirect to /login
-  → session exists → allow through to (app) routes
-
-(auth) routes → no middleware check → always accessible
-```
-
-### Key migrations from prototype patterns
-
-| Prototype pattern | Next.js equivalent |
-|---|---|
-| `enterApp()` / `showAuthScreen()` | Middleware + route groups |
-| `document.getElementById(...)` mutations | React state + controlled components |
-| `notifications.unshift(...)` + `renderNotifs()` | Zustand slice + React re-render |
-| `supabaseClient.from('posts').select(...)` everywhere | `useFeed()` hook, data fetched once |
-| `isDemoAccount` guards | Remove entirely — demo mode not needed in production |
-| `currentUser.*` global variables | `useAppStore().currentUser` |
-| `showToast('...')` | `useAppStore().addToast(...)` |
-| `openModal('...')` | `useAppStore().openModal(...)` |
+**Key tech choices:** TypeScript (Supabase-generated types), Tailwind (design tokens already defined), Zustand (replaces ~40 globals), `@supabase/ssr` (server-side sessions), Onfido (real KYC), Next.js Image (auto-optimisation).
 
 ---
 
-## Supabase changes needed for Next.js migration
+## Database design
 
-Minimal — the schema is largely sound. Key additions:
+All 20 migrations are applied. Schema is stable.
 
-| Addition | Reason |
-|---|---|
-| `profiles.handle` column (HAT-XXXXXX) | Unique user handle for profile URLs |
-| `get_circle_owners_for_member` RPC | Already exists (migration 018) |
-| Onfido webhook handler | New API route to set `profiles.verified = true` |
-| Row-level cron job (pg_cron) | 24-hour diary expiry on Supabase |
+```sql
+profiles        (id uuid PK → auth.users, name, bio, avatar_url, verified bool,
+                 privacy text, account_type text, created_at)
 
-Do **not** change: existing tables, RLS policies, storage buckets, outlet account UUIDs.
+posts           (id uuid PK, user_id → profiles, caption, image_url,
+                 feed_type text, visibility text, external_url, created_at)
+
+follows         (follower_id → profiles, following_id → profiles, created_at)
+                 UNIQUE(follower_id, following_id), no self-follow constraint
+
+follow_requests (id, requester_id → profiles, target_id → profiles,
+                 status text [pending/approved/declined], created_at)
+
+events          (id, user_id → profiles, title, description, location,
+                 starts_at, ends_at, visibility [public/private/invite])
+
+event_invites   (event_id → events, invitee_id → profiles,
+                 rsvp [pending/going/maybe/declined])   PK(event_id, invitee_id)
+
+collections     (id, user_id → profiles, name, created_at)
+collection_items(id, collection_id → collections, post_id → posts)
+
+invite_codes    (id, code text UNIQUE, used_by → profiles, used_at)
+
+notifications   (id, user_id → profiles, type text, actor_id → profiles,
+                 entity_id, text, read bool, created_at)
+
+likes           (id, post_id → posts, user_id → profiles, created_at)
+saved_posts     (id, post_id → posts, user_id → profiles, saved_at)
+comments        (id, post_id → posts, user_id → profiles, text, created_at)
+
+circles         (id, user_id → profiles, name, created_at)
+circle_members  (id, circle_id → circles, member_id → profiles, created_at)
+                 UNIQUE(circle_id, member_id)
+```
+
+All tables have RLS enabled. Key RLS patterns:
+- `profiles`: public SELECT (true); owner UPDATE
+- `posts`: public read for `visibility='public'`; follower read for `visibility='friends'`; owner INSERT/UPDATE/DELETE
+- `follows`: public SELECT; owner INSERT/DELETE
+- `notifications`: owner SELECT/UPDATE; any authenticated INSERT (needed for cross-user notifications)
+
+### Special database objects
+
+```sql
+-- Migration 018: SECURITY DEFINER RPC
+-- Needed because circle_members RLS only allows circle owner to read rows.
+-- Used by loadFeedFromSupabase() to filter friends-only posts.
+get_circle_owners_for_member(member_uuid UUID) → TABLE(owner_id UUID)
+```
+
+### Outlet accounts (special profiles)
+```
+BBC News:     id = 'a0000000-0000-0000-0000-000000000001'
+The Guardian: id = 'a0000000-0000-0000-0000-000000000002'
+account_type = 'outlet', verified = true, privacy = 'public'
+Posts inserted by api/fetch-news.js using service role key
+```
+
+---
+
+## Authentication
+
+**Current (prototype):** Supabase Auth via CDN JS SDK. `onAuthStateChange` listener manages session. PKCE flow for password reset.
+
+**Session flow:**
+1. User signs in → Supabase sets session cookie / localStorage
+2. `onAuthStateChange` fires `SIGNED_IN` → `enterApp()` called
+3. `enterApp()` loads profile, follows, circles, notifications in parallel
+4. `SIGNED_OUT` event → `showAuthScreen()`
+
+**Known auth issues:** Password reset requires detecting the URL hash on page load (PKCE code in URL). Current implementation uses `supabase.auth.exchangeCodeForSession()` on load.
+
+**Target (Next.js):** `@supabase/ssr` package. Middleware checks session cookie. Server-side session available on first render. No `onAuthStateChange` listener needed.
+
+---
+
+## Deployment
+
+**Live URL:** https://totem-frontend-five.vercel.app/
+
+**Deploy process:** Push to `main` branch on GitHub → Vercel auto-deploys (typically <60 seconds).
+
+**Environment variables (set in Vercel project settings):**
+```
+SUPABASE_URL         = https://ocztxpmmbopcbtshetts.supabase.co
+SUPABASE_SERVICE_KEY = [service_role key — in Vercel, NOT in git]
+CRON_SECRET          = hatch-cron-2026-secret-xyz
+```
+
+**News ingestion (manual trigger):**
+```bash
+curl -H "Authorization: Bearer hatch-cron-2026-secret-xyz" \
+  https://totem-frontend-five.vercel.app/api/fetch-news
+```
+Returns `{"inserted": N, "errors": [], "feeds": 5}`. Requires Vercel Pro for auto-cron; currently manual.
+
+**Test suite:**
+```bash
+node tests/supabase_test_suite.js
+# Expected: 39 tests, 36 pass, 0 fail, 3 skip
+```
+
+---
+
+## Important decisions
+
+| Decision | What was chosen | Why |
+|---|---|---|
+| Single HTML file | Keep as prototype | Migration is planned but not started — see migration-plan.md |
+| Supabase over Firebase | Supabase | PostgreSQL, open source, self-hostable, RLS, better privacy story |
+| No npm dependencies (frontend) | CDN-loaded Supabase JS | Prototype simplicity — Next.js migration will use proper npm |
+| Outlet accounts as Supabase profiles | Real profiles with fixed UUIDs | FK integrity, queryable like any user, followable via standard flow |
+| SECURITY DEFINER RPC for circles | `get_circle_owners_for_member()` | Circle member RLS only allows owner reads; viewer needs to know if they're in someone's circle — circular RLS would cause infinite recursion |
+| RSS ingestion as serverless function | `api/fetch-news.js` | No CORS on server-side, no npm XML parser needed (regex extraction), free on Vercel Hobby |
+| Audience filtering client-side | Filter after fetch, not in query | PostgREST nested AND/OR syntax is unreliable; client-side filter on 60 posts is negligible cost |
+| `commonjs` module type | `"type": "commonjs"` in package.json | Vercel serverless functions need CommonJS; ESM `export default` caused 404s |
+| KYC deferred to P3 | Fake UI stub | Real implementation needs Onfido account + webhook endpoint — significant scope |

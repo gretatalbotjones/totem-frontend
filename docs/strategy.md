@@ -1,268 +1,135 @@
-# Hatch — Strategy, Growth & Funding
+# Strategy
 
-> *"Social media isn't a tech company. It's a utility that hasn't realised it yet."*
+## Differentiation
 
-Synthesised from: `Totem_Growth_Strategy_3.docx`, `feed-tech-roadmap.html`, `feed-growth-exit-model.html`, `feed-vc-guide.html` — March 2026, Confidential.
+Hatch is a **social utility**, not an engagement platform. The structural difference:
 
----
-
-## The thesis
-
-Meta, TikTok and Snap are trapped in a structural contradiction: their growth model requires continuously extracting more from users, which continuously degrades the product. Facebook lost a generation to this. Instagram is mid-cycle.
-
-Hatch is built on the opposite principle — a **social utility**, not an engagement machine. Utilities grow at 5–12% per year, reliably, for decades. Their customers are genuine customers who pay directly, expect quality, and churn if you fail them. This creates entirely different product incentives: **make it better, not make it stickier**.
-
-Spotify did this to music. The same transformation is available in social — and no one has done it yet.
-
----
-
-## The regulatory tailwind
-
-- The EU Digital Services Act (DSA) enforces algorithmic transparency, data portability, and content explainability for large platforms
-- GDPR enforcement: €4B+ in cumulative fines; Meta alone €1.3B+ from the Irish DPC
-- Every enforcement action activates latent privacy concern and creates a media moment
-- **Hatch is compliant by design.** Competitors will spend billions on compliance. Hatch has it as a structural advantage.
-
-**Evidence — the Signal moment (January 2021):** WhatsApp's data-sharing policy update drove 7.5M new Signal installs in one week — a 4,200% increase. The latent demand existed; it needed a triggering event and a credible destination simultaneously. Hatch is building the credible destination for social feeds.
-
----
-
-## Market sizing — London TAM funnel
-
-Each step is evidenced, not top-down.
-
-| Funnel stage | Volume | Source |
+| | Meta / Instagram | Hatch |
 |---|---|---|
-| London population | 9,000,000 | ONS 2023 |
-| Age 25–40 | 1,980,000 | ONS age structure (22%) |
-| Social media users (25–40) | 1,742,000 | Ofcom 2024: 88% use social media |
-| Privacy-motivated switchers (8%) | 139,000 | 10x discount on Eurobarometer 60–70% concern |
-| Year 1 target (1% of addressable) | 17,400 | Requires concentrated East London seeding |
-| **Critical seed density target** | **5,000** | Minimum to trigger network effects in 2–3 communities |
+| Revenue model | Sell user data and attention to advertisers | Subscriptions + contextual ads on verified audience |
+| Feed | Algorithmic, optimised for time-on-app | Chronological by default, user-controlled |
+| Identity | Anonymous or unverified | KYC-verified real person, one account |
+| Data | Collected, profiled, sold | Not sold. User can export everything |
+| Growth incentive | More engagement = more data = more revenue | Better product = more subscribers = more revenue |
 
-The 8% motivated-switcher estimate is the most uncertain assumption. If Hatch achieves functional parity and solves cold-start, the true addressable may be 3–4x higher. The conservative figure avoids overstating the market.
-
-**The 3–5% switching figure is supply-constrained, not demand-constrained.** It is a floor, not a ceiling.
+The product promise is factually accurate: *"Hatch charges £35/year in cash and returns the data. Instagram charges £58/year in your behaviour and keeps the data."*
 
 ---
 
-## Network effects — the 25% tipping point
+## Competitors
 
-**Source:** Centola (2018, *Science*) — "Experimental evidence for tipping points in social convention."
-
-Platform switching is **complex contagion** — it requires multiple exposures before behaviour changes. The tipping point is 25% of a defined group.
-
-| Dunbar layer | People needed | Implication |
-|---|---|---|
-| Support clique (~5) | 1–2 on Hatch | Immediately at or past 25% threshold |
-| Sympathy group (~15) | 3–4 on Hatch | Achievable as a direct seeding target |
-| Affinity group (~50) | ~13 on Hatch | Achievable within a workplace or social circle |
-| Active network (~150) | ~38 on Hatch | When Hatch becomes socially unavoidable |
-
-**WhatsApp benchmark:** In markets where WhatsApp achieved dominance (India, UK, Brazil), the tipping point was 30–40% contact list penetration. Hatch's broadcast model means 25% is the applicable benchmark.
-
-**The Mastodon ceiling:** Mastodon grew from 6M to 14M registered users after the Twitter/X change in 2022, but DAU/MAU stabilised at ~12% and plateaued. This proves demand for alternatives is real, but UX friction, sparse local networks and missing features suppress retention. Hatch must solve all three.
-
----
-
-## Growth projections — MAU scenarios
-
-Growth is non-linear and event-driven. The scenario spread is wide because individual triggering events create step-changes that dwarf organic growth.
-
-| Period | Low | Base | High | Key drivers |
-|---|---|---|---|---|
-| Year 1 | 50K | 100K | 200K | Base: 1% of London addressable, 5–10 East London communities seeded. High: early media moment. Low: cold-start not solved. |
-| Year 2 | 150K | 400K | 1M | Base: borough-by-borough expansion, strong Y1 retention. High: second EU market + DSA enforcement coverage. Low: Mastodon plateau. |
-| Year 3 | 500K | 1.5M | 5M | Base: 2–3 EU markets, news tier Phase 1. High: major Meta enforcement event. Low: pivot required. |
-| Year 4 | 1.2M | 5M | 15M | Base: approaching break-even on lean team. High: B2B2C traction. |
-| Year 5 | 2.5M | 10M | 30M | Base: break-even, 4–5 EU markets. High: major triggering event + EU expansion. |
-
-**DAU/MAU target: 35%** — Meta ~65% (dark patterns), Mastodon ~12% (insufficient usefulness). Hatch matches Spotify. Events and Coordinator create genuine weekly use reasons.
-
-**Early warning signal:** If below 400K MAU by end of Year 2, go deeper in existing communities before geographic expansion.
-
----
-
-## Monetisation model
-
-### Revenue lines
-
-**1. Contextual advertising (free users)**
-- Year 1 (day-one rate): **£4–6 / user / year** — media buyers require 12–18 months of live performance data before committing to premium CPMs
-- Steady-state: **£12–18 / user / year** — justified by verified real users, known 25–40 demographic, trust environment (3-ad cap), contextual placement
-
-Benchmark comparisons:
-| Platform | ARPU | Why |
-|---|---|---|
-| Meta EU | £58 | Behavioural targeting at scale |
-| Financial Times | £36 | Verified professional readership |
-| LinkedIn | £30 | Verified professionals, contextual only |
-| The Guardian | £22 | Contextual, no user verification |
-| **Hatch (steady-state)** | **£12–18** | Discounted for scale and demographic |
-| Meta at £58 is **not achievable** on a privacy-first model — the gap is the product promise |
-
-**2. Hatch Plus subscription**
-- Price: **£3.99/month** or **£35/year** (annual = 27% discount, 3x lower churn per Spotify data)
-- Conversion target: **10%** of MAU
-- Revenue-maximising price point — above £5.99 conversion drops faster than per-subscriber revenue increases
-
-**Framing:** The correct comparison is not £3.99 vs £0. It is £3.99 vs £58 — the amount Instagram effectively charges in data and behavioural targeting. Hatch charges £35/year in cash and returns the data. This is the marketing line, and it is factually accurate.
-
-**Conversion-driving features (ranked):**
-1. Data export + transparency dashboard (90/100) — makes privacy promise concrete and visible daily
-2. Feed algorithm control centre (88/100) — the inverse of what Meta deliberately withholds
-3. Memory archive (85/100) — creates a personal asset that grows over time; strongest retention mechanic
-4. Surgical notification controls (82/100) — control by person, type, time window
-5. Honest usage analytics (78/100) — weekly digest of own data, resonant with 25–40 demographic
-6. Ad removal alone (38/100) — necessary but insufficient; must be bundled
-
-**3. Plus News (Phase 2+)**
-- Price: **£6.99/month**
-- Conversion: 2% of total MAU
-- Publisher strategy (strict sequencing to avoid the Blendle failure):
-  - Phase 1 (0–500K MAU): No news tier. Build premium habit first.
-  - Phase 2 (500K–3M MAU): 3 founding publishers — Tortoise, The New European, Byline Times. All ideologically aligned. Revenue: £15–40K/yr per title.
-  - Phase 3 (3M–10M MAU): National publishers viable — Guardian, Times, Telegraph. £50–200K/yr per title.
-  - Phase 4 (10M+ MAU): EU expansion — Der Spiegel, Le Monde, De Correspondent. FT conversation viable.
-
-### Revenue at 10M MAU
-
-| Revenue line | Amount | Notes |
-|---|---|---|
-| Free users (88%) | 8.8M × £14 = **£123M/yr** | Revised from old £3 assumption |
-| Plus users (10%) | 1M × £3.99 × 12 = **£47.9M/yr** | Revenue-maximising price point |
-| Plus News (2%) | 200K × £6.99 × 12 = **£16.8M/yr** | Phase 2+ only |
-| **Total ARR** | **~£188M/yr** | Blended ARPU: ~£18.80/user/year |
-
-**Break-even: 4–5M MAU** on a lean AI-augmented team.
-
-### Free launch period
-- 12–18 months completely free
-- Framing from day one: "Founding members lock in their rate forever"
-- Months 3–6: Plus waitlist (no commitment) — gives first accurate read on conversion ceiling
-- Months 9–12: 90-day countdown, founding member badge
-- Month 12–18: Plus launches. **Nothing removed from free. Only new capabilities added above it. This rule is absolute.**
-
----
-
-## Geographic expansion
-
-**Sequence:** East London → London boroughs → UK → EU
-
-**EU entry markets:** Berlin, Amsterdam (Year 3 base case)
-**EU expansion at scale:** Der Spiegel (Germany), Le Monde (France), De Correspondent (Netherlands)
-
-**Why East London first:**
-- Highest concentration of target demographic (25–40, urban professionals)
-- Strong community identity — local venues, events, social networks
-- Self-referral mechanic — Coordinator feature is its own referral loop
-- Venue partnerships = free distribution (50K+ pre-qualified users from mailing lists)
-
----
-
-## Engineering & commercial roadmap
-
-### Phases (54 months to Phase 5)
-
-| Phase | Duration | Users | Tech | Commercial | Burn/mo | Capital |
-|---|---|---|---|---|---|---|
-| 1 — Pilot | 12mo | 0 → 500 | 3 + 1PT | 1.5 | £38–48K | Seed £600K |
-| 2 — Early Adopters | 12mo | 500 → 3,000 | 6–7 | 3–4 | £60–80K | Series A £1.5M |
-| 3 — Early Scalers | 15mo | 3,000 → 15,000 | 10–14 | 7–10 | £100–140K | Series B £3M |
-| 4 — Broader Adoption | 15mo | 15,000 → 50,000 | 18–25 | 15–20 | £200–280K | Series C £5M |
-| 5 — Scale Up | 18mo+ | 50,000 → 500,000 | 35–50 | 30–40 | £350–500K | Post-Series C |
-
-### Phase 1 tech team
-- **Jack (CTO & co-founder)** — Hands-on engineering + architecture. 80% coding, 20% leadership. Sets AI tooling standard from day one.
-- **Senior Full-Stack Engineer** — React Native/Flutter, Node/Python, Supabase. Most important hire of the company. £70–90K or equity-heavy. Hire Month 1.
-- **AI/Automation Engineer** — Cursor, Claude Code, Copilot, agent frameworks. Builds dev tooling that makes the team 2–3× faster. Contract ~£450/day.
-
-### AI-augmented development
-AI tooling compresses team size by approximately **40–50%** vs the traditional social platform playbook:
-- Boilerplate code generation
-- Unit test writing
-- Documentation from code comments
-- Design-to-code (component generation from Figma specs)
-
-What AI does **not** replace:
-- Legal/Privacy (most critical early hire — one GDPR enforcement action kills the company)
-- Publisher partnerships
-- Trust and safety
-
-Total five-year capital (base case): **£18–28M** — ~40% below traditional social platform capital requirements.
-
----
-
-## Funding strategy
-
-### Rounds
-
-| Round | Amount | Dilution | Trigger milestone |
+| Competitor | Why people are on it | Why they'd leave | Hatch advantage |
 |---|---|---|---|
-| Pre-seed | £300–500K | 15–20% | Prototype + 500 East London waitlist signups |
-| Seed | £1.5–2.5M | 18–22% | 18mo runway to 50K MAU; first 6 hires |
-| Series A | £6–10M | 20–25% | 500K MAU, £1M ARR, second EU market live |
-| Series B | £15–20M | 15–18% | 3M MAU, break-even visible within 18mo, 3+ publisher deals |
+| Instagram | Everyone is there | Algorithmic feed, data selling, declining authentic sharing | Privacy, chronological, verified |
+| WhatsApp | Group messaging | No social feed, no content discovery | Hatch adds the social layer WhatsApp lacks |
+| Mastodon | Privacy values | UX friction, sparse local networks, missing features | Hatch solves all three |
+| BeReal | Authenticity | No events, no group coordination, stalled growth | Hatch has the full social graph |
+| Substack Notes | Written content, creator-led | No real-life social graph, no events | Hatch is for people not brands |
 
-*(Note: feed-tech-roadmap.html shows smaller rounds — £600K seed, £1.5M Series A — reflecting an earlier, leaner model. The growth strategy doc shows larger rounds for a more ambitious trajectory. Both are in scope depending on traction.)*
+**The Mastodon lesson:** Demand for alternatives is real but UX friction, sparse local networks, and missing features kill retention. Hatch must solve all three simultaneously.
 
-### Target investors by round
-- **Seed:** Balderton, Seedcamp, Passion Capital
-- **Series A:** Atomico, Northzone, Index
-- **Series B:** Accel, General Catalyst EU
-
-**Principle: who over terms, always at early stage.** A well-networked angel at slightly higher dilution is almost always better than an unknown fund at better terms. At Seed and Series A, investors are the first sales team.
-
-**Milestone-based raising (not calendar-based):**
-- Series A triggers at 1,000+ MAU + Hatch Plus live
-- Series B triggers at £20K MRR
-- Series C triggers at £100K MRR
-
-### The fundraising narrative
-Consumer social is a difficult category for VCs — Clubhouse, BeReal, Path. The Feed/Hatch pitch addresses this directly with three structural differentiators:
-1. **Revenue model from Phase 3** — not deferred to scale
-2. **Verified identity layer** — a defensible technical moat, expensive to replicate
-3. **European values alignment** — GDPR culture, privacy-first, no surveillance advertising
-
-**Comparisons to use:** Monzo and Revolut both raised ~£10M to reach their first 50,000 users and are now multi-billion pound businesses. Both were dismissed by most investors at Seed.
+**The Signal moment (Jan 2021):** WhatsApp privacy policy change → 7.5M new Signal installs in one week, 4,200% increase. Latent demand exists. It needs a triggering event and a credible destination. Hatch is building the credible destination.
 
 ---
 
-## The IPO argument
+## Network effects
 
-Utility/subscription multiples compress far less violently than tech growth multiples. When growth slows from 30% to 15%, a 25x revenue multiple becomes 10x — a 60% drawdown without the business changing. 
+Platform switching is **complex contagion** — it requires multiple contacts before behaviour changes (Centola, 2018, *Science*). The tipping point is **25% of a defined social group**.
 
-**Target:** IPO priced at **18–22x EBITDA** (Spotify / Match Group range) with £15M+ EBITDA and growing 15% per year. This is a vastly more durable public company than a loss-making social platform priced on "user potential."
+| Dunbar layer | Group size | Users needed on Hatch | Status |
+|---|---|---|---|
+| Support clique | ~5 | 1–2 | Immediately past 25% |
+| Sympathy group | ~15 | 3–4 | Direct seeding target |
+| Affinity group | ~50 | ~13 | Achievable in a workplace |
+| Active network | ~150 | ~38 | When Hatch becomes unavoidable |
 
----
+**Strategy:** Seed specific East London communities rather than broadcasting. 5,000 users in 2–3 communities at 25% density beats 50,000 users spread thin.
 
-## Key risks and mitigants
-
-| Risk | Probability | Mitigant |
-|---|---|---|
-| Growth plateau (Mastodon risk) | Medium | Track group density metrics monthly, not just MAU. <400K MAU by Year 2 = go deeper in existing communities |
-| Ad ARPU shortfall in Year 1 | High initially | Day-one rate is £4–6. Model Year 1 burn on this. Build to £12–18 as performance data accumulates |
-| Fundraising gap in Years 2–3 | Medium | Begin Series A process no later than month 18. Stay 9–12 months ahead of zero cash |
-| Premium conversion below 10% | Low-Medium | Revenue model still works at 6–7% conversion with revised ad ARPU. Invest in asset-creating features before cutting price |
-| Publisher deal sequencing failure | Low-Medium | 3 partners maximum initially. Apply Blendle lesson: concentrated, then expand |
-| Feature regression backlash | Medium | Nothing ever moves from free to paid. Build this into the roadmap from day one |
+**Self-referral mechanic:** The Coordinator and Events features create natural "invite your friends" moments every time a social plan forms through Hatch.
 
 ---
 
-## Implications for engineering
+## Go to market
 
-Every engineering decision should be evaluated against these strategic constraints:
+**Phase 1 — East London (0 → 5,000 users)**
+- Invite-only, zero paid advertising
+- Target: 2–3 specific East London communities (workplaces, friend networks, running clubs)
+- Venue partnerships: East London venues list their events for free in exchange for mailing list mentions → 50K+ pre-qualified users without paid spend
+- Founder-led community seeding; Greta attends, posts, invites
 
-1. **Speed to 5,000 seed users** — the East London tipping point. Features that help users bring their friend group onto the platform have disproportionate value.
+**Phase 2 — London boroughs (5,000 → 100K users)**
+- Borough-by-borough expansion from the East London core
+- Local press (East London Advertiser, Hackney Gazette) — privacy angle is the story
+- DSA enforcement news cycle creates unprompted media moments
 
-2. **DAU/MAU by design, not dark patterns** — no infinite scroll, no algorithmic manipulation to maximise time-on-app. Engineering should actively resist adding engagement-maximising patterns.
+**Phase 3 — UK + EU (100K → 1M users)**
+- Berlin and Amsterdam as first EU markets (high English fluency, strong privacy culture)
+- Publisher partnerships begin (Tortoise, The New European, Byline Times)
+- Series A funds expansion team
 
-3. **Verified identity as a moat** — the KYC implementation quality matters. A fake or bypassed KYC erodes the entire trust premium. Onfido integration (Phase 8 in migration plan) is strategically critical.
+---
 
-4. **Events + Coordinator = weekly habit** — this is the primary DAU/MAU driver. The Explore/events features are not secondary; they are central to retention.
+## Revenue model
 
-5. **AI tooling is a competitive advantage** — the team compounds the AI tooling benefit across all phases. Claude Code, Cursor, Copilot are not optional shortcuts; they are how a 3-person team builds at the speed of 8.
+**Free for 12–18 months.** Every screen from day one says: *"Founding members lock in their rate forever."* Free is a privilege, not the default state.
 
-6. **Contextual data is the ad model** — no behavioural tracking, no cross-site data. The ad model works on verified demographics + event/location context. Engineering must never compromise this: no fingerprinting, no third-party pixels, no data selling.
+### Revenue streams
 
-7. **Regulatory compliance is a feature, not a burden** — GDPR, DSA, UK Online Safety Act. Build compliance in from day one. One enforcement action kills the company.
+| Stream | Price | Conversion | At 10M MAU |
+|---|---|---|---|
+| Contextual ads (free users) | £4–6/user/yr (Year 1) → £12–18 (steady-state) | 88% of users | ~£123M/yr |
+| Hatch Plus | £3.99/month or £35/year | 10% of users | ~£47.9M/yr |
+| Plus News | £6.99/month | 2% of users | ~£16.8M/yr |
+| **Total at 10M MAU** | | | **~£188M ARR** |
+
+**Break-even:** 4–5M MAU on a lean AI-augmented team.
+
+**Ad ARPU rationale:** Verified real users (zero bot traffic, +40–60% CPM premium), known 25–40 demographic (highest CPMs in European digital advertising), low ad load (3-ad cap, trust environment premium), contextual placement alongside event data. Benchmarks: LinkedIn £30, The Guardian £22, Meta EU £58 (behavioural — not achievable on privacy-first model).
+
+**Plus conversion drivers** (ranked by conversion power):
+1. Data export + transparency dashboard — makes privacy promise tangible
+2. Feed algorithm control — the inverse of what Meta deliberately withholds
+3. Memory archive — creates a personal asset, raises switching cost
+4. Surgical notification controls — control by person, type, time window
+5. Ad removal — necessary but insufficient alone (only 38/100 conversion power)
+
+**Publisher sequencing (strict — lessons from Blendle's failure):**
+- Phase 1 (0–500K MAU): No news tier
+- Phase 2 (500K–3M): 3 publishers only — Tortoise, New European, Byline Times
+- Phase 3 (3M–10M): Guardian, Times, Telegraph
+- Phase 4 (10M+): EU — Der Spiegel, Le Monde, De Correspondent
+
+---
+
+## Funding
+
+| Round | Amount | Dilution | Trigger |
+|---|---|---|---|
+| Pre-seed | £300–500K | 15–20% | Prototype + 500 waitlist |
+| Seed | £1.5–2.5M | 18–22% | 18mo runway to 50K MAU |
+| Series A | £6–10M | 20–25% | 500K MAU + £1M ARR + second EU market |
+| Series B | £15–20M | 15–18% | 3M MAU + break-even visible within 18mo |
+
+**Total 5-year capital (base case): £18–28M** — ~40% below traditional social platform due to AI tooling compression.
+
+**Target VCs:** Seed: Balderton, Seedcamp, Passion Capital. Series A: Atomico, Northzone, Index. Series B: Accel, General Catalyst EU.
+
+**Milestone-based raising** (not calendar): Series A at 1,000+ MAU + Plus live. Series B at £20K MRR. Series C at £100K MRR.
+
+---
+
+## Long-term vision
+
+**The IPO thesis:** A social utility priced at 18–22x EBITDA (Spotify/Match Group range) — not a volatile growth tech multiple. £15M+ EBITDA, growing 15% per year, predictable recurring revenue. This is a more durable public company than a loss-making platform priced on "user potential."
+
+**5-year geographic arc:** East London → London → UK → EU (Berlin, Amsterdam) → pan-European
+
+**Phase 2+ product (deferred):**
+- React Native mobile app (shared Supabase backend)
+- DMs via Supabase Realtime
+- Diary 24-hour expiry
+- Feed Switch (Instagram import)
+- QR ID card
+- Feed+ creator subscriptions
+
+**The regulatory tailwind:** GDPR (€4B+ fines), EU DSA, UK Online Safety Act all push social media toward exactly what Hatch already is. Competitors will spend billions on compliance. Hatch is compliant by design. As regulation tightens, this becomes a direct competitive advantage.
